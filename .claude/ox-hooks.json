@@ -1,0 +1,5 @@
+{
+  "subsystems": [
+    { "format": "make format", "check": "make check" }
+  ]
+}

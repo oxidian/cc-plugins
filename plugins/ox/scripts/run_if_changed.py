@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Run format or check commands when files have changed.
+
+Reads project configuration from .claude/ox-hooks.json to determine which
+subsystems to check. Each subsystem defines format/check commands and an
+optional directory scope.
+
+Usage:
+  python run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action format
+  python run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action check
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+
+# https://docs.anthropic.com/en/docs/claude-code/hooks#simple%3A-exit-code
+BLOCKING_ERROR_CODE = 2
+SUCCESS_CODE = 0
+
+CONFIG_PATH = ".claude/ox-hooks.json"
+
+
+def _is_python_import_only(old_string: str, new_string: str) -> bool:
+    """Check if edit only adds/modifies Python import statements."""
+
+    def get_non_import_lines(text: str) -> list[str]:
+        lines = []
+        for line in text.split("\n"):
+            stripped = line.strip()
+            if stripped and not stripped.startswith(("import ", "from ")):
+                lines.append(line)
+        return lines
+
+    return get_non_import_lines(old_string) == get_non_import_lines(new_string)
+
+
+def _is_js_import_only(old_string: str, new_string: str) -> bool:
+    """Check if edit only adds/modifies JS/TS import statements."""
+
+    def get_non_import_lines(text: str) -> list[str]:
+        lines = []
+        for line in text.split("\n"):
+            stripped = line.strip()
+            if stripped and not stripped.startswith(("import ", "export ")):
+                lines.append(line)
+        return lines
+
+    return get_non_import_lines(old_string) == get_non_import_lines(new_string)
+
+
+def is_import_only_edit(hook_input: dict) -> bool:
+    """Check if this edit only modifies import statements.
+
+    Routes to language-specific logic based on file extension.
+    """
+    tool_input = hook_input.get("tool_input", {})
+    file_path = tool_input.get("file_path", "")
+    old_string = tool_input.get("old_string", "")
+    new_string = tool_input.get("new_string", "")
+
+    if file_path.endswith(".py"):
+        return _is_python_import_only(old_string, new_string)
+
+    if any(file_path.endswith(ext) for ext in (".ts", ".tsx", ".js", ".jsx")):
+        return _is_js_import_only(old_string, new_string)
+
+    return False
+
+
+def get_changed_files(project_dir: str) -> set[str]:
+    """Return the set of changed file paths from git status --porcelain."""
+    try:
+        result = subprocess.run(
+            "git status --porcelain",
+            shell=True,
+            capture_output=True,
+            text=True,
+            cwd=project_dir,
+        )
+    except Exception as e:
+        print(f"Error getting git status: {e}", file=sys.stderr)
+        sys.exit(BLOCKING_ERROR_CODE)
+
+    if result.returncode != 0:
+        print(f"Error getting git status: {result.stderr}", file=sys.stderr)
+        sys.exit(BLOCKING_ERROR_CODE)
+
+    files = set()
+    for line in result.stdout.split("\n"):
+        if line:
+            files.add(line[3:])  # Skip XY status codes and space
+    return files
+
+
+def directory_has_changes(changed_files: set[str], directory: str) -> bool:
+    """Check if any changed file is under the given directory."""
+    prefix = f"{directory}/"
+    return any(f.startswith(prefix) for f in changed_files)
+
+
+def run_subsystem(command: str, cwd: str, action: str) -> bool:
+    """Run a command in the given directory. Returns True on success."""
+    print(f"Running `{command}` in {cwd}")
+
+    process = subprocess.Popen(
+        command,
+        shell=True,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        universal_newlines=True,
+    )
+    process.wait()
+
+    if process.returncode == 0:
+        if process.stdout:
+            for line in process.stdout:
+                print(line, end="")
+        if action == "check":
+            print("Checks passed.")
+        else:
+            print("Formatting completed successfully.")
+        return True
+    else:
+        if process.stdout:
+            for line in process.stdout:
+                print(line, end="", file=sys.stderr)
+        if action == "check":
+            print("Checks failed. You must fix them.", file=sys.stderr)
+        else:
+            print("Formatting failed. You must fix the issues.", file=sys.stderr)
+        return False
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run format/check when files change")
+    parser.add_argument("--project-dir", required=True, help="Project root directory")
+    parser.add_argument(
+        "--action",
+        required=True,
+        choices=["format", "check"],
+        help="Action to run",
+    )
+    args = parser.parse_args()
+
+    # Read config
+    config_file = os.path.join(args.project_dir, CONFIG_PATH)
+    if not os.path.exists(config_file):
+        print(f"No {CONFIG_PATH} found, skipping")
+        sys.exit(SUCCESS_CODE)
+
+    with open(config_file) as f:
+        config = json.load(f)
+
+    subsystems = config.get("subsystems", [])
+    if not subsystems:
+        print(f"No subsystems configured in {CONFIG_PATH}, skipping")
+        sys.exit(SUCCESS_CODE)
+
+    # Read hook input from stdin
+    hook_input = None
+    try:
+        stdin_data = sys.stdin.read()
+        if stdin_data:
+            hook_input = json.loads(stdin_data)
+            if hook_input.get("permission_mode") == "plan":
+                print("Plan mode active, skipping")
+                sys.exit(SUCCESS_CODE)
+    except (json.JSONDecodeError, Exception):
+        pass
+
+    # Skip formatting for import-only edits
+    if args.action == "format" and hook_input and is_import_only_edit(hook_input):
+        print("Import-only edit detected, skipping format")
+        sys.exit(SUCCESS_CODE)
+
+    changed_files = get_changed_files(args.project_dir)
+    if not changed_files:
+        print("No files changed, skipping")
+        sys.exit(SUCCESS_CODE)
+
+    any_failed = False
+
+    for subsystem in subsystems:
+        command = subsystem.get(args.action)
+        if not command:
+            continue
+
+        directory = subsystem.get("directory")
+
+        if directory:
+            if not directory_has_changes(changed_files, directory):
+                print(f"No {directory}/ files modified, skipping")
+                continue
+            cwd = os.path.join(args.project_dir, directory)
+        else:
+            # Whole-project subsystem — run at project root on any change
+            cwd = args.project_dir
+
+        if not run_subsystem(command, cwd, args.action):
+            any_failed = True
+
+    if any_failed:
+        sys.exit(BLOCKING_ERROR_CODE)
+
+    if args.action == "check" and not any_failed:
+        print("All checks passed. Stop working.")
+
+    sys.exit(SUCCESS_CODE)
+
+
+if __name__ == "__main__":
+    main()

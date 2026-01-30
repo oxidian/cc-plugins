@@ -3,6 +3,9 @@ setup:
 	uv sync --frozen
 	uv run pre-commit install
 
+dev:
+	claude --plugin-dir ./plugins/ox --plugin-dir ./plugins/ox-gh
+
 format:
 	uv sync --frozen
 	uv run ruff check --fix .

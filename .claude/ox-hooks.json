@@ -1,5 +1,5 @@
 {
-  "subsystems": [
-    { "format": "make format", "check": "make check" }
+  "checks": [
+    { "fast": "make format", "slow": "make check" }
   ]
 }

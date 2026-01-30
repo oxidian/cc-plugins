@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action format",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action fast",
             "timeout": 30
           }
         ]
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action check",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action slow",
             "timeout": 120
           }
         ]

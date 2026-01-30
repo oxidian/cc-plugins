@@ -49,8 +49,8 @@ Hooks are configured per-project via `.claude/ox-hooks.json`:
 
 ```json
 {
-  "subsystems": [
-    { "format": "make format", "check": "make check" }
+  "checks": [
+    { "fast": "make format", "slow": "make check" }
   ]
 }
 ```

@@ -1,4 +1,5 @@
 setup:
+	@bash scripts/banner.sh
 	uv sync --frozen
 	uv run pre-commit install
 

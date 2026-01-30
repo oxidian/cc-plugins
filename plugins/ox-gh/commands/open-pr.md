@@ -1,6 +1,6 @@
 ---
 allowed-tools: Bash(git checkout --branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git status:*), Bash(git push:*), Bash(git commit:*), Bash(git log:*), Bash(gh pr create:*)
-description: Commit, push, and open a PR
+description: Commit, push, and open a pull request
 ---
 
 ## Context

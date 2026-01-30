@@ -1,6 +1,7 @@
 ---
 allowed-tools: Bash(uv run --directory backend python scripts/wait_for_ai_review.py:*), Bash(gh pr view:*), Bash(gh pr checkout:*), Bash(gh api:*), Bash(git remote get-url origin)
 description: Wait for AI code review on a PR, analyze findings, and offer to address issues
+disable-model-invocation: true
 ---
 
 ## Context

@@ -1,6 +1,7 @@
 ---
 allowed-tools: Bash(git checkout --branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git log:*)
 description: Commit changes with a clean commit message
+disable-model-invocation: true
 ---
 
 ## Context

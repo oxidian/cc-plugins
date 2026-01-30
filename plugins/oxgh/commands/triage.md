@@ -1,6 +1,7 @@
 ---
 allowed-tools: Bash(gh project:*), Bash(gh issue view:*), Bash(gh api:*)
 description: Triage a GitHub issue (set component, priority, size, milestone)
+disable-model-invocation: true
 ---
 
 ## Context

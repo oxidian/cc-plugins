@@ -1,6 +1,7 @@
 ---
 allowed-tools: Bash(git checkout --branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git status:*), Bash(git push:*), Bash(git commit:*), Bash(git log:*), Bash(gh pr create:*), Bash(gh pr merge:*)
 description: Commit, push, and open a pull request with auto-merge
+disable-model-invocation: true
 ---
 
 ## Context

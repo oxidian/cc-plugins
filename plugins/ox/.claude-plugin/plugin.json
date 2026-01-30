@@ -1,0 +1,8 @@
+{
+  "name": "ox",
+  "description": "Base plugin — commit command, code quality hooks, auto-format and check hooks for all projects",
+  "version": "1.0.0",
+  "author": {
+    "name": "Oxidian"
+  }
+}

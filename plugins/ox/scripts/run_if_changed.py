@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Run format or check commands when files have changed.
+"""Run fast or slow checks when files have changed.
 
 Reads project configuration from .claude/ox-hooks.json to determine which
-subsystems to check. Each subsystem defines format/check commands and an
+checks to run. Each check config defines fast/slow commands and an
 optional directory scope.
 
 Usage:
-  python run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action format
-  python run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action check
+  python run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action fast
+  python run_if_changed.py --project-dir $CLAUDE_PROJECT_DIR --action slow
 """
 
 import argparse
@@ -101,7 +101,7 @@ def directory_has_changes(changed_files: set[str], directory: str) -> bool:
     return any(f.startswith(prefix) for f in changed_files)
 
 
-def run_subsystem(command: str, cwd: str, action: str) -> bool:
+def run_check(command: str, cwd: str, action: str) -> bool:
     """Run a command in the given directory. Returns True on success."""
     print(f"Running `{command}` in {cwd}")
 
@@ -121,29 +121,29 @@ def run_subsystem(command: str, cwd: str, action: str) -> bool:
         if process.stdout:
             for line in process.stdout:
                 print(line, end="")
-        if action == "check":
+        if action == "slow":
             print("Checks passed.")
         else:
-            print("Formatting completed successfully.")
+            print("Fast check completed successfully.")
         return True
     else:
         if process.stdout:
             for line in process.stdout:
                 print(line, end="", file=sys.stderr)
-        if action == "check":
+        if action == "slow":
             print("Checks failed. You must fix them.", file=sys.stderr)
         else:
-            print("Formatting failed. You must fix the issues.", file=sys.stderr)
+            print("Fast check failed. You must fix the issues.", file=sys.stderr)
         return False
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run format/check when files change")
+    parser = argparse.ArgumentParser(description="Run fast/slow checks when files change")
     parser.add_argument("--project-dir", required=True, help="Project root directory")
     parser.add_argument(
         "--action",
         required=True,
-        choices=["format", "check"],
+        choices=["fast", "slow"],
         help="Action to run",
     )
     args = parser.parse_args()
@@ -157,9 +157,9 @@ def main() -> None:
     with open(config_file) as f:
         config = json.load(f)
 
-    subsystems = config.get("subsystems", [])
-    if not subsystems:
-        print(f"No subsystems configured in {CONFIG_PATH}, skipping")
+    checks = config.get("checks", [])
+    if not checks:
+        print(f"No checks configured in {CONFIG_PATH}, skipping")
         sys.exit(SUCCESS_CODE)
 
     # Read hook input from stdin
@@ -174,9 +174,9 @@ def main() -> None:
     except (json.JSONDecodeError, Exception):
         pass
 
-    # Skip formatting for import-only edits
-    if args.action == "format" and hook_input and is_import_only_edit(hook_input):
-        print("Import-only edit detected, skipping format")
+    # Skip fast checks for import-only edits
+    if args.action == "fast" and hook_input and is_import_only_edit(hook_input):
+        print("Import-only edit detected, skipping fast check")
         sys.exit(SUCCESS_CODE)
 
     changed_files = get_changed_files(args.project_dir)
@@ -186,12 +186,12 @@ def main() -> None:
 
     any_failed = False
 
-    for subsystem in subsystems:
-        command = subsystem.get(args.action)
+    for check in checks:
+        command = check.get(args.action)
         if not command:
             continue
 
-        directory = subsystem.get("directory")
+        directory = check.get("directory")
 
         if directory:
             if not directory_has_changes(changed_files, directory):
@@ -199,16 +199,16 @@ def main() -> None:
                 continue
             cwd = os.path.join(args.project_dir, directory)
         else:
-            # Whole-project subsystem — run at project root on any change
+            # Whole-project check — run at project root on any change
             cwd = args.project_dir
 
-        if not run_subsystem(command, cwd, args.action):
+        if not run_check(command, cwd, args.action):
             any_failed = True
 
     if any_failed:
         sys.exit(BLOCKING_ERROR_CODE)
 
-    if args.action == "check" and not any_failed:
+    if args.action == "slow" and not any_failed:
         print("All checks passed. Stop working.")
 
     sys.exit(SUCCESS_CODE)

@@ -1,15 +1,15 @@
 // For a repository with unified tooling:
 {
-  "subsystems": [
-    { "format": "uv run ruff format .", "check": "uv run ruff check ." }
+  "checks": [
+    { "fast": "uv run ruff format .", "slow": "uv run ruff check ." }
   ]
 }
 
 // For a repository with submodules using different tooling:
 {
-  "subsystems": [
-    { "directory": "backend",    "format": "make format",    "check": "make check" },
-    { "directory": "frontend",   "format": "npm run format", "check": "npm run check" },
-    { "directory": "hocuspocus", "format": "npm run format", "check": "npm run check" }
+  "checks": [
+    { "directory": "backend",    "fast": "make format",    "slow": "make check" },
+    { "directory": "frontend",   "fast": "npm run format", "slow": "npm run check" },
+    { "directory": "hocuspocus", "fast": "npm run format", "slow": "npm run check" }
   ]
 }

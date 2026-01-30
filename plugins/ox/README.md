@@ -26,20 +26,20 @@ Runs on `Write|Edit|MultiEdit` — auto-formats changed files using the project'
 
 ### Stop
 
-Runs before Claude stops — executes check commands on modified subsystems.
+Runs before Claude stops — executes slow checks on modified directories.
 
 ## Project configuration
 
 The PostToolUse and Stop hooks read `.claude/ox-hooks.json` from the project root to determine what to run. If the file is missing, the hooks are no-ops.
 
-Each entry in `subsystems` defines a `format` command (run on PostToolUse) and a `check` command (run on Stop). If `directory` is set, the command only triggers when files under that directory have changed and runs inside that subdirectory. If omitted, the command triggers on any file change and runs at the project root.
+Each entry in `checks` defines a `fast` command (run on PostToolUse) and a `slow` command (run on Stop). If `directory` is set, the command only triggers when files under that directory have changed and runs inside that subdirectory. If omitted, the command triggers on any file change and runs at the project root.
 
 **Whole-project** (e.g. a Python project using ruff):
 
 ```json
 {
-  "subsystems": [
-    { "format": "uv run ruff format .", "check": "uv run ruff check ." }
+  "checks": [
+    { "fast": "uv run ruff format .", "slow": "uv run ruff check ." }
   ]
 }
 ```
@@ -48,10 +48,10 @@ Each entry in `subsystems` defines a `format` command (run on PostToolUse) and a
 
 ```json
 {
-  "subsystems": [
-    { "directory": "backend",    "format": "make format",    "check": "make check" },
-    { "directory": "frontend",   "format": "npm run format", "check": "npm run check" },
-    { "directory": "hocuspocus", "format": "npm run format", "check": "npm run check" }
+  "checks": [
+    { "directory": "backend",    "fast": "make format",    "slow": "make check" },
+    { "directory": "frontend",   "fast": "npm run format", "slow": "npm run check" },
+    { "directory": "hocuspocus", "fast": "npm run format", "slow": "npm run check" }
   ]
 }
 ```

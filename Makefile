@@ -4,7 +4,7 @@ setup:
 	uv run pre-commit install
 
 dev:
-	claude --plugin-dir ./plugins/ox --plugin-dir ./plugins/oxgh
+	claude --plugin-dir ./plugins/ox --plugin-dir ./plugins/oxgh --plugin-dir ./plugins/oxgl
 
 format:
 	uv sync --frozen

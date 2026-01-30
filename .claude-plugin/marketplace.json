@@ -1,0 +1,12 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "oxidian",
+  "description": "Oxidian team plugins for Claude Code",
+  "owner": {
+    "name": "Oxidian"
+  },
+  "plugins": [
+    { "name": "ox",         "source": "./plugins/ox" },
+    { "name": "ox-gh",      "source": "./plugins/ox-gh" }
+  ]
+}

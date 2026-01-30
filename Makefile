@@ -10,10 +10,12 @@ format:
 	uv sync --frozen
 	uv run ruff check --fix .
 	uv run ruff format .
+	uv run python scripts/format_json.py
 	uv run ty check --error-on-warning .
 
 check:
 	uv sync --frozen
 	uv run ruff check .
 	uv run ruff format --check .
+	uv run python scripts/format_json.py --check
 	uv run ty check --error-on-warning .

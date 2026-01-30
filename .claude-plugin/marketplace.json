@@ -6,8 +6,17 @@
     "name": "Oxidian"
   },
   "plugins": [
-    { "name": "ox",         "source": "./plugins/ox" },
-    { "name": "oxgh",       "source": "./plugins/oxgh" },
-    { "name": "oxgl",       "source": "./plugins/oxgl" }
+    {
+      "name": "ox",
+      "source": "./plugins/ox"
+    },
+    {
+      "name": "oxgh",
+      "source": "./plugins/oxgh"
+    },
+    {
+      "name": "oxgl",
+      "source": "./plugins/oxgl"
+    }
   ]
 }

@@ -16,7 +16,6 @@
       "Bash(git rm:*)",
       "Bash(git show-branch:*)",
       "Bash(git show:*)",
-
       "Bash(gh api:*)",
       "Bash(gh issue view:*)",
       "Bash(gh pr checks:*)",
@@ -26,22 +25,18 @@
       "Bash(gh pr view:*)",
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
-
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(tree:*)",
-
       "Bash(make check)",
       "Bash(make format)",
-
       "WebFetch(domain:ai.pydantic.dev)",
       "WebFetch(domain:docs.astral.sh)",
       "WebFetch(domain:docs.github.com)",
       "WebFetch(domain:gist.github.com)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:pypi.org)",
-
       "WebSearch"
     ],
     "deny": [

@@ -1,0 +1,8 @@
+{
+  "name": "oxgl",
+  "description": "GitLab workflow — MR, issue, and merge commands using glab CLI",
+  "version": "0.0.1",
+  "author": {
+    "name": "Oxidian"
+  }
+}

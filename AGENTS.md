@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Claude Code plugin marketplace providing commit workflows, code quality hooks, and GitHub commands for Oxidian projects. Contains two plugins: **ox** (base plugin) and **oxgh** (GitHub workflows).
+Claude Code plugin marketplace providing commit workflows, code quality hooks, and platform commands for Oxidian projects. Contains three plugins: **ox** (base plugin), **oxgh** (GitHub workflows), and **oxgl** (GitLab workflows).
 
 ## Commands
 
@@ -28,8 +28,11 @@ plugins/
 │   ├── hooks/               # Hook definitions (hooks.json)
 │   ├── scripts/             # Python hook implementations
 │   └── .claude-plugin/      # Plugin metadata (plugin.json)
-└── oxgh/                    # GitHub workflow plugin
-    ├── commands/            # PR, issue, triage, merge commands
+├── oxgh/                    # GitHub workflow plugin
+│   ├── commands/            # PR, issue, triage, merge commands
+│   └── .claude-plugin/      # Plugin metadata
+└── oxgl/                    # GitLab workflow plugin
+    ├── commands/            # MR, issue, merge commands
     └── .claude-plugin/      # Plugin metadata
 ```
 

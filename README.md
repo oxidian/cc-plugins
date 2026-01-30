@@ -7,4 +7,4 @@ A Claude Code plugin marketplace providing commit workflows, code quality hooks,
 | Plugin | Purpose |
 |--------|---------|
 | [**ox**](plugins/ox/) | Base plugin — commit command, code quality hooks, auto-format and checks |
-| [**ox-gh**](plugins/ox-gh/) | GitHub workflow — PR, issue, triage, review, and merge commands |
+| [**oxgh**](plugins/oxgh/) | GitHub workflow — PR, issue, triage, review, and merge commands |

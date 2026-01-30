@@ -1,4 +1,4 @@
-# ox-gh
+# oxgh
 
 GitHub workflow commands using the `gh` CLI.
 

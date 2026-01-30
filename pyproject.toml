@@ -1,0 +1,45 @@
+[project]
+name = "cc-plugins"
+version = "0.1.0"
+description = "Oxidian Claude Code plugins"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { file = "../LICENSE" }
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "ruff>=0.14.14",
+    "ty>=0.0.13",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 119
+
+[tool.ruff.lint]
+select = [
+    "E",     # Pycodestyle errors
+    "W",     # Pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort
+    "RUF",   # RUF-specific rules
+    "SIM",   # Simplifications
+    "B",     # Bugbear
+    "ANN",   # Annotations
+    "PLC",   # Pylint convention
+    "PLE",   # Pylint errors
+    "UP",    # pyupgrade
+    "FURB",  # refurb
+    "PT",    # pytest
+    "ASYNC", # Async rules (blocking calls in async functions)
+    "ISC",   # flake8-implicit-str-concat
+]
+ignore = [
+    "E501",   # line too long
+    "SIM108", # ternary operator
+    "SIM103", # return bool directly
+]

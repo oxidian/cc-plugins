@@ -23,5 +23,8 @@ check:
 bump:
 	uv run python scripts/bump.py $(filter-out $@,$(MAKECMDGOALS))
 
+bump-check:
+	uv run python scripts/bump.py --check
+
 %:
 	@:

@@ -26,6 +26,20 @@ def get_changed_plugins() -> set[str]:
     return changed
 
 
+def version_changed(plugin: str) -> bool:
+    """Check if plugin.json version differs from origin/main."""
+    result = subprocess.run(
+        ["git", "show", f"origin/main:plugins/{plugin}/.claude-plugin/plugin.json"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return True  # New plugin, no base version
+    old_data = json.loads(result.stdout)
+    new_data = json.loads(Path(f"plugins/{plugin}/.claude-plugin/plugin.json").read_text())
+    return old_data["version"] != new_data["version"]
+
+
 def bump_version(version: str, bump_type: str) -> str:
     parts = [int(p) for p in version.split(".")]
     if bump_type == "major":
@@ -50,12 +64,37 @@ def bump_plugin(plugin: str, bump_type: str) -> tuple[str, str]:
     return old_version, new_version
 
 
+def check_versions() -> int:
+    """Verify changed plugins have version bumps. Returns 0 if all pass, 1 if any fail."""
+    changed = get_changed_plugins()
+    if not changed:
+        print("No plugin changes detected")
+        return 0
+
+    failed = []
+    for plugin in sorted(changed):
+        if version_changed(plugin):
+            print(f"✓ {plugin}: version bumped")
+        else:
+            print(f"✗ {plugin}: version not bumped")
+            failed.append(plugin)
+
+    if failed:
+        print(f"\nRun 'make bump' to bump versions for: {', '.join(failed)}")
+        return 1
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Bump plugin versions")
     parser.add_argument(
         "type", nargs="?", default="patch", choices=["major", "minor", "patch"], help="Version bump type"
     )
+    parser.add_argument("--check", action="store_true", help="Check if versions were bumped (for CI)")
     args = parser.parse_args()
+
+    if args.check:
+        return check_versions()
 
     changed = get_changed_plugins()
     if not changed:

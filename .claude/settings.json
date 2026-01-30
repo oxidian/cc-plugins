@@ -1,13 +1,4 @@
 {
-  "extraKnownMarketplaces": {
-    "oxidian": {
-      "source": { "source": "directory", "path": "." }
-    }
-  },
-  "enabledPlugins": {
-    "ox@oxidian": true,
-    "ox-gh@oxidian": true
-  },
   "attribution": {
     "commit": "",
     "pr": ""

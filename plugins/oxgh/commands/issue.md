@@ -1,6 +1,7 @@
 ---
 allowed-tools: Bash(gh issue create:*), Bash(gh api:*), Bash(gh project:*), Bash(gh repo view:*)
 description: Create GitHub Issue
+disable-model-invocation: true
 ---
 
 ## Context

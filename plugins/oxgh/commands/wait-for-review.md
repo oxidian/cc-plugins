@@ -14,5 +14,5 @@ disable-model-invocation: true
 3. **Wait for AI review**: Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait_for_ai_review.py <PR_NUMBER>` (use 45 minute timeout)
 4. **Read all PR comments**: Parse the owner/repo from the git remote above, then run `gh api repos/{owner}/{repo}/issues/<PR_NUMBER>/comments`
 5. **Analyze and respond**:
-   - If there are findings: investigate the codebase to understand the issue, then immediately write a concrete implementation plan to fix them. Do NOT ask the user whether they want to fix the issues - assume they do. Write the full plan directly.
+   - If there are findings: investigate the codebase to understand the issue, then immediately create an implementation plan to fix any issues using TDD. Do NOT ask the user whether they want to fix the issues - assume they do. Write the full plan directly.
    - If no findings: report success

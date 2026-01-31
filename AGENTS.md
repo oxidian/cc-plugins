@@ -9,10 +9,12 @@ Claude Code plugin marketplace providing commit workflows, code quality hooks, a
 ## Commands
 
 ```bash
-make setup    # Install dependencies and pre-commit hooks
-make dev      # Run Claude Code with local plugins loaded
-make format   # Auto-format code (ruff check --fix, ruff format, ty check)
-make check    # Verify formatting and linting passes
+make setup      # Install dependencies and pre-commit hooks
+make dev        # Run Claude Code with local plugins loaded
+make format     # Auto-format code
+make check      # Verify formatting and linting passes
+make bump       # Bump plugin versions
+make bump-check # Check version bump without applying
 ```
 
 Uses `uv` as the package manager. Python 3.14+.
@@ -30,9 +32,11 @@ plugins/
 │   └── .claude-plugin/      # Plugin metadata (plugin.json)
 ├── oxgh/                    # GitHub workflow plugin
 │   ├── commands/            # PR, issue, triage, merge commands
+│   ├── scripts/             # Workflow automation scripts
 │   └── .claude-plugin/      # Plugin metadata
 └── oxgl/                    # GitLab workflow plugin
     ├── commands/            # MR, issue, merge commands
+    ├── scripts/             # Workflow automation scripts
     └── .claude-plugin/      # Plugin metadata
 ```
 
@@ -53,7 +57,10 @@ Hooks are configured per-project via `.claude/ox-hooks.json`:
 ```json
 {
   "checks": [
-    { "fast": "make format", "slow": "make check" }
+    {
+      "fast": "make format",
+      "slow": "make check"
+    }
   ]
 }
 ```

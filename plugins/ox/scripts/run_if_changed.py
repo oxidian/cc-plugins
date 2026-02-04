@@ -28,10 +28,37 @@ def _is_python_import_only(old_string: str, new_string: str) -> bool:
 
     def get_non_import_lines(text: str) -> list[str]:
         lines = []
+        in_paren_import = False
+        backslash_continuation = False
+
         for line in text.split("\n"):
             stripped = line.strip()
-            if stripped and not stripped.startswith(("import ", "from ")):
+
+            # Handle backslash continuation from previous line
+            if backslash_continuation:
+                backslash_continuation = stripped.endswith("\\")
+                continue
+
+            # Handle parenthesized import block
+            if in_paren_import:
+                if ")" in stripped:
+                    in_paren_import = False
+                continue
+
+            # Check if this is an import statement
+            if stripped.startswith(("import ", "from ")):
+                # Multi-line parenthesized import
+                if " import " in stripped and "(" in stripped and ")" not in stripped:
+                    in_paren_import = True
+                # Backslash continuation
+                elif stripped.endswith("\\"):
+                    backslash_continuation = True
+                continue
+
+            # Non-import line
+            if stripped:
                 lines.append(line)
+
         return lines
 
     return get_non_import_lines(old_string) == get_non_import_lines(new_string)
@@ -42,10 +69,40 @@ def _is_js_import_only(old_string: str, new_string: str) -> bool:
 
     def get_non_import_lines(text: str) -> list[str]:
         lines = []
+        in_import_block = False
+        in_export_block = False
+
         for line in text.split("\n"):
             stripped = line.strip()
-            if stripped and not stripped.startswith(("import ", "export ")):
+
+            # Handle multi-line import block
+            if in_import_block:
+                if "from" in stripped or stripped.endswith(";"):
+                    in_import_block = False
+                continue
+
+            # Handle multi-line export block
+            if in_export_block:
+                if stripped.startswith("}") or stripped.endswith("};"):
+                    in_export_block = False
+                continue
+
+            # Check if this starts an import
+            if stripped.startswith("import "):
+                if "{" in stripped and "}" not in stripped:
+                    in_import_block = True
+                continue
+
+            # Only treat re-export blocks as export-only (export { ... } or export type { ... })
+            if stripped.startswith(("export {", "export type {")):
+                if "}" not in stripped:
+                    in_export_block = True
+                continue
+
+            # Non-import/export line
+            if stripped:
                 lines.append(line)
+
         return lines
 
     return get_non_import_lines(old_string) == get_non_import_lines(new_string)

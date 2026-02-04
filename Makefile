@@ -19,6 +19,7 @@ check:
 	uv run ruff format --check .
 	uv run python scripts/format_json.py --check
 	uv run ty check --error-on-warning .
+	uv run pytest tests/
 
 bump:
 	uv run python scripts/bump.py $(filter-out $@,$(MAKECMDGOALS))

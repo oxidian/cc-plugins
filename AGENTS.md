@@ -12,7 +12,7 @@ Claude Code plugin marketplace providing commit workflows, code quality hooks, a
 make setup      # Install dependencies and pre-commit hooks
 make dev        # Run Claude Code with local plugins loaded
 make format     # Auto-format code
-make check      # Verify formatting and linting passes
+make check      # Run this instead of pytest directly - includes formatting, linting, type checking, and tests
 make bump       # Bump plugin versions
 make bump-check # Check version bump without applying
 ```

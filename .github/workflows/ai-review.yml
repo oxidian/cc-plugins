@@ -6,25 +6,11 @@ on:
   issue_comment:
     types: [created]
 
-concurrency:
-  group: ai-review-${{ github.event.pull_request.number || github.event.issue.number }}${{ github.event_name == 'issue_comment' && !startsWith(github.event.comment.body, '/review') && '-noop' || '' }}
-  cancel-in-progress: true
-
 jobs:
   review:
     uses: oxidian/actions/.github/workflows/ai-review.yml@main
     with:
-      # Required: Your OpenAI API endpoint
-      responses-api-endpoint: "https://bidapps-azure-openai-eastus2.openai.azure.com/openai/v1/responses"
-
-      # Required: The model to use for reviews
-      model: "gpt-5.2-codex"
-
-      # Optional: Effort level (low, medium, high, xhigh)
-      effort: "xhigh"
-
-    # Optional: Maximum minutes to wait for CI checks (default: 30)
+      responses-api-endpoint: ${{ vars.OPENAI_API_ENDPOINT }}
       ci-timeout-minutes: 3
     secrets:
-      # Required: Your OpenAI API key (add this to your repository secrets)
       openai-api-key: ${{ secrets.AZURE_OPENAI_API_KEY }}

@@ -22,7 +22,7 @@ Add to `.claude/settings.json`:
     "oxidian": {
       "source": {
         "source": "git",
-        "url": "git@github.com:oxidian/cc-plugins.git"
+        "url": "https://github.com/oxidian/cc-plugins.git"
       }
     }
   },

@@ -1,4 +1,4 @@
-name: AI PR Review
+name: AI Review
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   review:
-    uses: oxidian/actions/.github/workflows/ai-pr-review.yml@main
+    uses: oxidian/actions/.github/workflows/ai-review.yml@main
     with:
       # Required: Your OpenAI API endpoint
       responses-api-endpoint: "https://bidapps-azure-openai-eastus2.openai.azure.com/openai/v1/responses"

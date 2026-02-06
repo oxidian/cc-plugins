@@ -47,10 +47,10 @@ class TestShouldDeny:
         }
         assert should_deny(input_data) is False
 
-    def test_allows_missing_suggestions_field(self) -> None:
-        """Missing permission_suggestions field defaults to allow (safe default)."""
+    def test_denies_missing_suggestions_field(self) -> None:
+        """Missing permission_suggestions field means no 'always allow' — denied."""
         input_data = {
             "tool_name": "Bash",
             "tool_input": {"command": "cat foo | grep bar | sed 's/x/y/'"},
         }
-        assert should_deny(input_data) is False
+        assert should_deny(input_data) is True

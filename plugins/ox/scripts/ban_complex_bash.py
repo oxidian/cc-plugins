@@ -6,8 +6,9 @@ way to do what it wants. These commands block the agentic loop waiting for user
 input, which we don't want.
 
 When Claude Code shows a permission dialog for a Bash command and the
-``permission_suggestions`` array is empty (meaning no "Always Allow" option is
-available), the command is considered too complex and is denied automatically.
+``permission_suggestions`` field is missing or empty (meaning no "Always Allow"
+option is available), the command is considered too complex and is denied
+automatically.
 """
 
 import json
@@ -24,9 +25,7 @@ def should_deny(input_data: dict) -> bool:
     if input_data.get("tool_name") != "Bash":
         return False
     suggestions = input_data.get("permission_suggestions")
-    if suggestions is None:
-        return False
-    return len(suggestions) == 0
+    return not suggestions
 
 
 def main() -> None:

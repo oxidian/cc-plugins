@@ -2,6 +2,14 @@
 
 A Claude Code plugin marketplace providing commit workflows, code quality hooks, and platform-specific commands for Oxidian projects.
 
+## Quickstart
+
+```
+cd your-project/
+claude
+> Install github.com/oxidian/cc-plugins in this project
+```
+
 ## Plugins
 
 | Plugin | Purpose |

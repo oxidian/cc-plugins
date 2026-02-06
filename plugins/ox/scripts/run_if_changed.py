@@ -127,6 +127,32 @@ def is_import_only_edit(hook_input: dict) -> bool:
     return False
 
 
+def _is_team_lead_session(session_id: str) -> bool:
+    """Check if this session is leading an active agent team.
+
+    Agent teams (https://docs.anthropic.com/en/docs/claude-code/agent-teams)
+    store config in ~/.claude/teams/<name>/config.json, which includes
+    leadSessionId. When the lead session runs stop checks, it blocks the
+    orchestrator from coordinating members. The members' own sessions still
+    run their stop hooks independently, so skipping here is safe.
+    """
+    teams_dir = os.path.expanduser("~/.claude/teams")
+    if not os.path.isdir(teams_dir):
+        return False
+    for entry in os.listdir(teams_dir):
+        config_path = os.path.join(teams_dir, entry, "config.json")
+        if not os.path.isfile(config_path):
+            continue
+        try:
+            with open(config_path) as f:
+                team = json.load(f)
+            if team.get("leadSessionId") == session_id:
+                return True
+        except (json.JSONDecodeError, OSError):
+            continue
+    return False
+
+
 def get_changed_files(project_dir: str) -> set[str]:
     """Return the set of changed file paths from git status --porcelain."""
     try:
@@ -227,6 +253,9 @@ def main() -> None:
             hook_input = json.loads(stdin_data)
             if hook_input.get("permission_mode") == "plan":
                 print("Plan mode active, skipping")
+                sys.exit(SUCCESS_CODE)
+            if args.action == "slow" and _is_team_lead_session(hook_input.get("session_id", "")):
+                print("Agent team lead session, skipping stop checks")
                 sys.exit(SUCCESS_CODE)
     except (json.JSONDecodeError, Exception):
         pass

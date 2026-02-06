@@ -67,6 +67,10 @@ Hooks are configured per-project via `.claude/ox-hooks.json`:
 
 For monorepos, use `directory` to scope commands to subdirectories.
 
+## Workflow
+
+- **Bugfixes use TDD**: write/update the failing test first (red), then fix the code (green). Run `make check` after each phase to confirm.
+
 ## Key Files
 
 - `.claude/settings.json` — Permissions, environment variables, MCP server config

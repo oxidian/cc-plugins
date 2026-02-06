@@ -7,7 +7,7 @@ A Claude Code plugin marketplace providing commit workflows, code quality hooks,
 ```
 cd your-project/
 claude
-> Install github.com/oxidian/cc-plugins in this project
+> Install github.com/oxidian/cc-plugins in this project following instructions in the README
 ```
 
 ## Plugins

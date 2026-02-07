@@ -8,4 +8,4 @@ GitHub workflow commands using the `gh` CLI.
 - **`/issue`** — create issues with type, milestone, project fields, and sub-issue linking
 - **`/triage`** — classify issues by component, priority, size, and type
 - **`/wait-for-review`** — wait for AI code review completion and address findings
-- **`/yolo-merge`** — create PR with auto-merge enabled
+- **`/shipit`** — create PR with auto-merge enabled

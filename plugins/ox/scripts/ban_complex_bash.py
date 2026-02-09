@@ -26,7 +26,9 @@ DENY_MESSAGE = (
 )
 
 CD_DENY_MESSAGE = (
-    "BLOCKED: Run the cd command separately first, then run your actual command.\nSuggested cd: {cd_part}"
+    "BLOCKED: You MUST run `{cd_part}` as a separate Bash tool call first,"
+    " THEN run your actual command in a second Bash tool call."
+    " Do NOT drop the cd or combine them."
 )
 
 _SHELL_CHAIN = re.compile(r"[;&|`]|\$\(")

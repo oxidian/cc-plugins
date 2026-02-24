@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait_for_ai_review.py:*), Bash(glab mr view:*), Bash(glab mr checkout:*), Bash(glab api:*), Bash(git remote get-url origin)
+allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait_for_ai_review.py:*), Bash(glab mr view:*), Bash(glab mr checkout:*), Bash(glab api:*), Bash(glab repo view:*), Bash(git remote get-url origin)
 description: Wait for AI code review on an MR, analyze findings, and offer to address issues
 disable-model-invocation: true
 ---

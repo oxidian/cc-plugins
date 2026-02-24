@@ -1,7 +1,6 @@
 ---
 allowed-tools: Bash(git checkout --branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git status:*), Bash(git push:*), Bash(git commit:*), Bash(git log:*), Bash(glab mr create:*)
 description: Commit, push, and open a merge request
-disable-model-invocation: true
 ---
 
 ## Context

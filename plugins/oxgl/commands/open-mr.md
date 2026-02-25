@@ -25,5 +25,5 @@ Based on the above changes:
 1. Create a new branch if on main (do NOT add timestamps to branch names)
 2. Create a single commit with an appropriate message
 3. Push the branch to origin
-4. Create a merge request using `glab mr create`
+4. Create a merge request using `glab mr create`. Do not use the `--fill` option.
 5. You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.

@@ -17,6 +17,10 @@ _spec.loader.exec_module(run_if_changed)
 _is_python_import_only = run_if_changed._is_python_import_only
 _is_js_import_only = run_if_changed._is_js_import_only
 is_import_only_edit = run_if_changed.is_import_only_edit
+should_skip_throttled = run_if_changed.should_skip_throttled
+_get_state_file_path = run_if_changed._get_state_file_path
+_load_edit_count = run_if_changed._load_edit_count
+_save_edit_count = run_if_changed._save_edit_count
 
 
 class TestPythonImportOnly:
@@ -129,3 +133,56 @@ class TestIsImportOnlyEdit:
             }
         }
         assert is_import_only_edit(hook_input) is False
+
+
+class TestShouldSkipThrottled:
+    """Tests for should_skip_throttled() pure logic."""
+
+    def test_fast_every_1_never_skips(self) -> None:
+        for count in [1, 2, 5, 100]:
+            assert should_skip_throttled(count, 1) is False
+
+    def test_fast_every_zero_never_skips(self) -> None:
+        for count in [1, 2, 5]:
+            assert should_skip_throttled(count, 0) is False
+
+    def test_fast_every_negative_never_skips(self) -> None:
+        for count in [1, 2, 5]:
+            assert should_skip_throttled(count, -1) is False
+
+    def test_first_edit_always_runs(self) -> None:
+        for fast_every in [1, 3, 5, 10]:
+            assert should_skip_throttled(1, fast_every) is False
+
+    def test_every_nth_edit_runs(self) -> None:
+        assert should_skip_throttled(5, 5) is False
+        assert should_skip_throttled(10, 5) is False
+        assert should_skip_throttled(15, 5) is False
+
+    def test_intermediate_edits_skip(self) -> None:
+        assert should_skip_throttled(2, 5) is True
+        assert should_skip_throttled(3, 5) is True
+        assert should_skip_throttled(4, 5) is True
+        assert should_skip_throttled(6, 5) is True
+
+
+class TestEditCountStateFile:
+    """Tests for state file I/O helpers."""
+
+    def test_missing_file_returns_zero(self, tmp_path: Path) -> None:
+        assert _load_edit_count(str(tmp_path / "nonexistent.json")) == 0
+
+    def test_save_load_roundtrip(self, tmp_path: Path) -> None:
+        state_file = str(tmp_path / "state.json")
+        _save_edit_count(state_file, 7)
+        assert _load_edit_count(state_file) == 7
+
+    def test_corrupt_file_returns_zero(self, tmp_path: Path) -> None:
+        state_file = tmp_path / "bad.json"
+        state_file.write_text("not json{{{")
+        assert _load_edit_count(str(state_file)) == 0
+
+    def test_path_includes_session_id(self) -> None:
+        path = _get_state_file_path("abc-123")
+        assert "abc-123" in path
+        assert path.startswith("/tmp/")

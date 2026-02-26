@@ -57,3 +57,19 @@ Each entry in `checks` defines a `fast` command (run on PostToolUse) and a `slow
 ```
 
 The script also skips formatting for import-only edits (Python and JS/TS) to avoid unnecessary formatter runs while imports are being added.
+
+### Throttling fast checks
+
+When Claude makes many sequential edits, running the formatter on every single one is wasteful. The `fast_every` option throttles PostToolUse fast checks so they only run on the 1st edit and every Nth edit thereafter. The Stop hook always runs slow checks regardless of the throttle, catching any missed formatting.
+
+```json
+{
+  "fast_every": 5,
+  "checks": [
+    { "fast": "make format", "slow": "make check" }
+  ]
+}
+```
+
+- **Default:** `5` — format runs on edit 1, then every 5th edit (1, 5, 10, 15, ...)
+- Set to `1` to disable throttling (run on every edit)

@@ -11,6 +11,7 @@ Usage:
 """
 
 import argparse
+import contextlib
 import json
 import os
 import subprocess
@@ -21,6 +22,44 @@ BLOCKING_ERROR_CODE = 2
 SUCCESS_CODE = 0
 
 CONFIG_PATH = ".claude/ox-hooks.json"
+DEFAULT_FAST_EVERY = 5
+
+
+def _get_state_file_path(session_id: str) -> str:
+    """Return the path to the throttle state file for this session."""
+    return f"/tmp/ox-hooks-{session_id}.json"
+
+
+def _load_edit_count(state_file: str) -> int:
+    """Read the edit counter from the state file. Returns 0 on missing/corrupt."""
+    try:
+        with open(state_file) as f:
+            data = json.load(f)
+        return int(data.get("edit_count", 0))
+    except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError, TypeError):
+        return 0
+
+
+def _save_edit_count(state_file: str, count: int) -> None:
+    """Write the edit counter to the state file. Silently catches errors."""
+    try:
+        with open(state_file, "w") as f:
+            json.dump({"edit_count": count}, f)
+    except OSError:
+        pass
+
+
+def should_skip_throttled(edit_count: int, fast_every: int) -> bool:
+    """Decide whether to skip the fast check based on edit count.
+
+    Runs on edit 1 (first edit), then every ``fast_every``-th edit thereafter.
+    Returns True when the check should be *skipped*.
+    """
+    if fast_every <= 1:
+        return False
+    if edit_count == 1:
+        return False
+    return edit_count % fast_every != 0
 
 
 def _is_python_import_only(old_string: str, new_string: str) -> bool:
@@ -247,14 +286,16 @@ def main() -> None:
 
     # Read hook input from stdin
     hook_input = None
+    session_id = ""
     try:
         stdin_data = sys.stdin.read()
         if stdin_data:
             hook_input = json.loads(stdin_data)
+            session_id = hook_input.get("session_id", "")
             if hook_input.get("permission_mode") == "plan":
                 print("Plan mode active, skipping")
                 sys.exit(SUCCESS_CODE)
-            if args.action == "slow" and _is_team_lead_session(hook_input.get("session_id", "")):
+            if args.action == "slow" and _is_team_lead_session(session_id):
                 print("Agent team lead session, skipping stop checks")
                 sys.exit(SUCCESS_CODE)
     except (json.JSONDecodeError, Exception):
@@ -264,6 +305,16 @@ def main() -> None:
     if args.action == "fast" and hook_input and is_import_only_edit(hook_input):
         print("Import-only edit detected, skipping fast check")
         sys.exit(SUCCESS_CODE)
+
+    # Throttle fast checks — only run every Nth edit
+    if args.action == "fast" and session_id:
+        fast_every = config.get("fast_every", DEFAULT_FAST_EVERY)
+        state_file = _get_state_file_path(session_id)
+        edit_count = _load_edit_count(state_file) + 1
+        _save_edit_count(state_file, edit_count)
+        if should_skip_throttled(edit_count, fast_every):
+            print(f"Throttled: edit {edit_count} (runs every {fast_every}), skipping fast check")
+            sys.exit(SUCCESS_CODE)
 
     changed_files = get_changed_files(args.project_dir)
     if not changed_files:
@@ -296,6 +347,11 @@ def main() -> None:
 
     if args.action == "slow" and not any_failed:
         print("All checks passed. Stop working.")
+
+    # Clean up throttle state file after slow checks
+    if args.action == "slow" and session_id:
+        with contextlib.suppress(OSError):
+            os.remove(_get_state_file_path(session_id))
 
     sys.exit(SUCCESS_CODE)
 

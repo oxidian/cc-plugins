@@ -26,4 +26,4 @@ Based on the above changes:
 2. Create a single commit with an appropriate message
 3. Push the branch to origin
 4. Create a pull request using `gh pr create`
-5. You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.
+5. You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message using separate tool calls for each command. Do NOT chain commands with && or ;. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.

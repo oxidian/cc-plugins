@@ -16,6 +16,7 @@ description: Commit changes with a clean commit message
 - The commit body should usually be blank - the code should speak for itself
 - ONLY add a body to explain NON-OBVIOUS changes that aren't clear from the code
 - Do NOT repeat or describe what the code does - that's redundant
+- Do NOT prepend commit messages with "RED", "GREEN", or other TDD phase labels - just describe the change
 - See recent commits for examples (ignore dependabot and github-actions commits)
 
 ## Your task

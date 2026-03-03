@@ -1,8 +1,8 @@
 # oxgl
 
-GitLab workflow commands using the `glab` CLI.
+GitLab workflow skills using the `glab` CLI.
 
-## Commands
+## Skills
 
 - **`/open-mr`** — create branch, commit, push, open merge request
 - **`/issue`** — create issues with type labels, milestone, and linked issues

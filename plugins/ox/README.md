@@ -6,7 +6,7 @@ Base plugin.
 > [!WARNING]
 > Hooks require pre-configuration to function. See #project-configuration
 
-## Commands
+## Skills
 
 - **`/commit`** — clean commit workflow (branch creation, staging, imperative messages)
 

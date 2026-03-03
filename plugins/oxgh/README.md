@@ -1,8 +1,8 @@
 # oxgh
 
-GitHub workflow commands using the `gh` CLI.
+GitHub workflow skills using the `gh` CLI.
 
-## Commands
+## Skills
 
 - **`/pr`** — create branch, commit, push, open PR
 - **`/issue`** — create issues with type, milestone, project fields, and sub-issue linking

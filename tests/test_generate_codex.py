@@ -6,6 +6,8 @@ import textwrap
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 # Load the module dynamically since it's not in a proper package
 _script_path = Path(__file__).parent.parent / "scripts" / "generate_codex.py"
 _spec = importlib.util.spec_from_file_location("generate_codex", _script_path)
@@ -24,6 +26,9 @@ transform_tool_call_instructions = generate_codex.transform_tool_call_instructio
 transform_body = generate_codex.transform_body
 detect_script_deps = generate_codex.detect_script_deps
 process_skill = generate_codex.process_skill
+resolve_script_paths = generate_codex.resolve_script_paths
+install = generate_codex.install
+link = generate_codex.link
 
 PLUGINS_DIR = Path(__file__).parent.parent / "plugins"
 
@@ -318,3 +323,122 @@ class TestEndToEnd:
         result = (tmp_path / "oxgh" / "triage" / "SKILL.md").read_text()
         assert "name: oxgh:triage" in result
         assert "Execute each step as a separate command." in result
+
+
+class TestResolveScriptPaths:
+    def test_replaces_relative_with_absolute(self) -> None:
+        content = "Run `python3 scripts/wait_for_ai_review.py 42`"
+        scripts_dir = Path("/opt/plugins/oxgh/scripts")
+        result = resolve_script_paths(content, scripts_dir)
+        assert result == "Run `python3 /opt/plugins/oxgh/scripts/wait_for_ai_review.py 42`"
+
+    def test_replaces_multiple_scripts(self) -> None:
+        content = "Run `scripts/a.py` then `scripts/b.py`"
+        scripts_dir = Path("/abs")
+        result = resolve_script_paths(content, scripts_dir)
+        assert "/abs/a.py" in result
+        assert "/abs/b.py" in result
+
+    def test_no_change_without_scripts(self) -> None:
+        content = "Just some text"
+        scripts_dir = Path("/abs")
+        result = resolve_script_paths(content, scripts_dir)
+        assert result == content
+
+
+class TestInstall:
+    def _make_codex_skill(self, codex_dir: Path, plugin: str, skill: str, content: str) -> None:
+        skill_dir = codex_dir / plugin / skill
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(content)
+
+    def test_resolves_script_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        codex_dir = tmp_path / "codex"
+        self._make_codex_skill(
+            codex_dir,
+            "oxgh",
+            "wait-for-review",
+            "---\nname: oxgh:wait-for-review\n---\nRun `python3 scripts/wait.py 42`\n",
+        )
+        scripts_dir = codex_dir / "oxgh" / "wait-for-review" / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "wait.py").write_text("# script")
+
+        monkeypatch.setattr(generate_codex, "OUTPUT_DIR", codex_dir)
+
+        dest = tmp_path / "dest"
+        dest.mkdir()
+        install(dest, ["oxgh"])
+
+        installed = (dest / "oxgh:wait-for-review" / "SKILL.md").read_text()
+        abs_path = str(dest / "oxgh:wait-for-review" / "scripts" / "wait.py")
+        assert abs_path in installed
+        # No bare relative reference (every occurrence should be absolute)
+        assert installed.count("scripts/wait.py") == installed.count(abs_path)
+
+    def test_no_resolution_without_scripts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        codex_dir = tmp_path / "codex"
+        self._make_codex_skill(codex_dir, "ox", "commit", "---\nname: ox:commit\n---\nJust text\n")
+
+        monkeypatch.setattr(generate_codex, "OUTPUT_DIR", codex_dir)
+
+        dest = tmp_path / "dest"
+        dest.mkdir()
+        install(dest, ["ox"])
+
+        installed = (dest / "ox:commit" / "SKILL.md").read_text()
+        assert installed == "---\nname: ox:commit\n---\nJust text\n"
+
+
+class TestLink:
+    def _make_codex_skill(self, codex_dir: Path, plugin: str, skill: str, content: str) -> None:
+        skill_dir = codex_dir / plugin / skill
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(content)
+
+    def test_resolves_script_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        codex_dir = tmp_path / "codex"
+        self._make_codex_skill(
+            codex_dir,
+            "oxgh",
+            "wait-for-review",
+            "---\nname: oxgh:wait-for-review\n---\nRun `python3 scripts/wait.py 42`\n",
+        )
+        scripts_dir = codex_dir / "oxgh" / "wait-for-review" / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "wait.py").write_text("# script")
+
+        monkeypatch.setattr(generate_codex, "OUTPUT_DIR", codex_dir)
+
+        dest = tmp_path / "dest"
+        dest.mkdir()
+        link(dest, ["oxgh"])
+
+        target = dest / "oxgh:wait-for-review"
+        # Should be a real directory (not a symlink to the whole skill dir)
+        assert target.is_dir()
+        assert not target.is_symlink()
+
+        # SKILL.md should have absolute paths
+        linked = (target / "SKILL.md").read_text()
+        abs_path = str(codex_dir / "oxgh" / "wait-for-review" / "scripts" / "wait.py")
+        assert abs_path in linked
+        assert linked.count("scripts/wait.py") == linked.count(abs_path)
+
+        # scripts/ should be a symlink to the source scripts dir
+        linked_scripts = target / "scripts"
+        assert linked_scripts.is_symlink()
+        assert linked_scripts.resolve() == scripts_dir.resolve()
+
+    def test_simple_skill_still_symlinked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        codex_dir = tmp_path / "codex"
+        self._make_codex_skill(codex_dir, "ox", "commit", "---\nname: ox:commit\n---\nJust text\n")
+
+        monkeypatch.setattr(generate_codex, "OUTPUT_DIR", codex_dir)
+
+        dest = tmp_path / "dest"
+        dest.mkdir()
+        link(dest, ["ox"])
+
+        target = dest / "ox:commit"
+        assert target.is_symlink()

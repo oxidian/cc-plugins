@@ -135,6 +135,11 @@ def detect_script_deps(body: str, plugin_dir: Path) -> list[Path]:
     return unique
 
 
+def resolve_script_paths(content: str, scripts_dir: Path) -> str:
+    """Replace relative scripts/foo.py references with absolute paths."""
+    return re.sub(r"scripts/(\S+\.py)", lambda m: str(scripts_dir / m.group(1)), content)
+
+
 def process_skill(plugin_name: str, skill_dir: Path, output_dir: Path) -> None:
     """Transform one skill and write to output_dir."""
     skill_md = skill_dir / "SKILL.md"
@@ -251,6 +256,10 @@ def install(dest: Path, plugins: list[str]) -> None:
                 else:
                     shutil.rmtree(target)
             shutil.copytree(skill_dir, target)
+            skill_md = target / "SKILL.md"
+            if skill_md.exists() and (target / "scripts").is_dir():
+                content = skill_md.read_text()
+                skill_md.write_text(resolve_script_paths(content, target / "scripts"))
             print(f"Copied {namespaced} → {target}")
 
 
@@ -271,7 +280,15 @@ def link(dest: Path, plugins: list[str]) -> None:
                     target.unlink()
                 else:
                     shutil.rmtree(target)
-            target.symlink_to(skill_dir.resolve())
+            scripts_subdir = skill_dir / "scripts"
+            if scripts_subdir.is_dir():
+                target.mkdir(parents=True)
+                skill_md = skill_dir / "SKILL.md"
+                content = skill_md.read_text()
+                (target / "SKILL.md").write_text(resolve_script_paths(content, scripts_subdir.resolve()))
+                (target / "scripts").symlink_to(scripts_subdir.resolve())
+            else:
+                target.symlink_to(skill_dir.resolve())
             print(f"Linked {namespaced} → {skill_dir.resolve()}")
 
 

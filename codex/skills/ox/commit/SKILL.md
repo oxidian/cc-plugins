@@ -1,5 +1,5 @@
 ---
-name: commit
+name: ox:commit
 description: Commit changes with a clean commit message
 ---
 

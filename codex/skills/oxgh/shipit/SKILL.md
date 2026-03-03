@@ -1,5 +1,5 @@
 ---
-name: shipit
+name: oxgh:shipit
 description: Commit, push, and open a pull request with auto-merge
 ---
 

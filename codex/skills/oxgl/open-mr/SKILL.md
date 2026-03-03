@@ -1,5 +1,5 @@
 ---
-name: open-mr
+name: oxgl:open-mr
 description: Commit, push, and open a merge request
 ---
 

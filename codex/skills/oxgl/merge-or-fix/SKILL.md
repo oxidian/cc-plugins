@@ -1,5 +1,5 @@
 ---
-name: merge-or-fix
+name: oxgl:merge-or-fix
 description: Wait for AI code review on an MR — auto-merge if clean, fix issues if not
 ---
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Claude Code plugin marketplace providing commit workflows, code quality hooks, and platform commands for Oxidian projects. Contains three plugins: **ox** (base plugin), **oxgh** (GitHub workflows), and **oxgl** (GitLab workflows).
+Claude Code plugin marketplace providing commit workflows, code quality hooks, and platform skills for Oxidian projects. Contains three plugins: **ox** (base plugin), **oxgh** (GitHub workflows), and **oxgl** (GitLab workflows).
 
 ## Commands
 
@@ -26,23 +26,23 @@ Uses `uv` as the package manager. Python 3.14+.
 ```
 plugins/
 ├── ox/                      # Base plugin
-│   ├── commands/            # Command definitions (*.md with YAML frontmatter)
+│   ├── skills/              # Skill definitions (SKILL.md with YAML frontmatter)
 │   ├── hooks/               # Hook definitions (hooks.json)
 │   ├── scripts/             # Python hook implementations
 │   └── .claude-plugin/      # Plugin metadata (plugin.json)
 ├── oxgh/                    # GitHub workflow plugin
-│   ├── commands/            # PR, issue, triage, merge commands
+│   ├── skills/              # PR, issue, triage, merge skills
 │   ├── scripts/             # Workflow automation scripts
 │   └── .claude-plugin/      # Plugin metadata
 └── oxgl/                    # GitLab workflow plugin
-    ├── commands/            # MR, issue, merge commands
+    ├── skills/              # MR, issue, merge skills
     ├── scripts/             # Workflow automation scripts
     └── .claude-plugin/      # Plugin metadata
 ```
 
-### Command File Format
+### Skill File Format
 
-Commands are markdown files with YAML frontmatter specifying `allowed-tools` and `description`. The body contains context templates and task instructions.
+Skills are markdown files (`SKILL.md`) in named subdirectories under `skills/`, with YAML frontmatter specifying `allowed-tools` and `description`. The body contains context templates and task instructions.
 
 ### Hook System (ox plugin)
 

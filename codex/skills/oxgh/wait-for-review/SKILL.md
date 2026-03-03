@@ -1,5 +1,5 @@
 ---
-name: wait-for-review
+name: oxgh:wait-for-review
 description: Wait for AI code review on a PR, analyze findings, and offer to address issues
 ---
 

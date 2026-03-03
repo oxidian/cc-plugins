@@ -1,5 +1,5 @@
 ---
-name: merge-or-fix
+name: oxgh:merge-or-fix
 description: Wait for AI code review on a PR — auto-merge if clean, fix issues if not
 ---
 

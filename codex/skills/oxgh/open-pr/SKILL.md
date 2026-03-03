@@ -1,5 +1,5 @@
 ---
-name: open-pr
+name: oxgh:open-pr
 description: Commit, push, and open a pull request
 ---
 

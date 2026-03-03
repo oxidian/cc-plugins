@@ -1,5 +1,5 @@
 ---
-name: shipit
+name: oxgl:shipit
 description: Commit, push, and open a merge request with auto-merge
 ---
 

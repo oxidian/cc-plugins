@@ -55,9 +55,9 @@ class TestParseFrontmatter:
 
 class TestSerializeFrontmatter:
     def test_basic(self) -> None:
-        data = {"name": "commit", "description": "Do stuff"}
+        data = {"name": "ox:commit", "description": "Do stuff"}
         result = serialize_frontmatter(data)
-        assert result == "---\nname: commit\ndescription: Do stuff\n---\n"
+        assert result == "---\nname: ox:commit\ndescription: Do stuff\n---\n"
 
     def test_boolean(self) -> None:
         data = {"flag": True}
@@ -68,27 +68,27 @@ class TestSerializeFrontmatter:
 class TestTransformFrontmatter:
     def test_removes_allowed_tools(self) -> None:
         fm = {"allowed-tools": "Bash(git:*)", "description": "Do stuff"}
-        result = transform_frontmatter(fm, "commit")
+        result = transform_frontmatter(fm, "ox", "commit")
         assert "allowed-tools" not in result
 
     def test_removes_disable_model_invocation(self) -> None:
         fm = {"allowed-tools": "Bash(git:*)", "description": "Do stuff", "disable-model-invocation": True}
-        result = transform_frontmatter(fm, "shipit")
+        result = transform_frontmatter(fm, "oxgh", "shipit")
         assert "disable-model-invocation" not in result
 
-    def test_adds_name(self) -> None:
+    def test_adds_namespaced_name(self) -> None:
         fm = {"description": "Do stuff"}
-        result = transform_frontmatter(fm, "commit")
-        assert result["name"] == "commit"
+        result = transform_frontmatter(fm, "ox", "commit")
+        assert result["name"] == "ox:commit"
 
     def test_keeps_description(self) -> None:
         fm = {"description": "Do stuff"}
-        result = transform_frontmatter(fm, "commit")
+        result = transform_frontmatter(fm, "ox", "commit")
         assert result["description"] == "Do stuff"
 
     def test_name_first(self) -> None:
         fm = {"description": "Do stuff"}
-        result = transform_frontmatter(fm, "commit")
+        result = transform_frontmatter(fm, "ox", "commit")
         keys = list(result.keys())
         assert keys[0] == "name"
 
@@ -232,7 +232,7 @@ class TestProcessSkill:
         process_skill("ox", skill_dir, output_dir)
 
         result = (output_dir / "ox" / "commit" / "SKILL.md").read_text()
-        assert "name: commit" in result
+        assert "name: ox:commit" in result
         assert "description: Commit changes" in result
         assert "allowed-tools" not in result
         assert "!`" not in result
@@ -272,7 +272,7 @@ class TestEndToEnd:
         process_skill("ox", skill_dir, tmp_path)
 
         result = (tmp_path / "ox" / "commit" / "SKILL.md").read_text()
-        assert "name: commit" in result
+        assert "name: ox:commit" in result
         assert "description: Commit changes with a clean commit message" in result
         assert "allowed-tools" not in result
         assert "!`" not in result
@@ -285,7 +285,7 @@ class TestEndToEnd:
         process_skill("oxgh", skill_dir, tmp_path)
 
         result = (tmp_path / "oxgh" / "wait-for-review" / "SKILL.md").read_text()
-        assert "name: wait-for-review" in result
+        assert "name: oxgh:wait-for-review" in result
         assert "${CLAUDE_PLUGIN_ROOT}" not in result
         assert "scripts/wait_for_ai_review.py" in result
         assert "disable-model-invocation" not in result
@@ -299,7 +299,7 @@ class TestEndToEnd:
         process_skill("oxgh", skill_dir, tmp_path)
 
         result = (tmp_path / "oxgh" / "shipit" / "SKILL.md").read_text()
-        assert "name: shipit" in result
+        assert "name: oxgh:shipit" in result
         assert "disable-model-invocation" not in result
         assert "allowed-tools" not in result
 
@@ -316,5 +316,5 @@ class TestEndToEnd:
         process_skill("oxgh", skill_dir, tmp_path)
 
         result = (tmp_path / "oxgh" / "triage" / "SKILL.md").read_text()
-        assert "name: triage" in result
+        assert "name: oxgh:triage" in result
         assert "Execute each step as a separate command." in result

@@ -1,5 +1,5 @@
 ---
-name: issue
+name: oxgh:issue
 description: Create GitHub Issue
 ---
 

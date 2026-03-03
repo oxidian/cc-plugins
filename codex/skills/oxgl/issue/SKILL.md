@@ -1,5 +1,5 @@
 ---
-name: issue
+name: oxgl:issue
 description: Create GitLab Issue
 ---
 

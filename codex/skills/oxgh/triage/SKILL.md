@@ -1,5 +1,5 @@
 ---
-name: triage
+name: oxgh:triage
 description: Triage a GitHub issue (set component, priority, size, milestone)
 ---
 

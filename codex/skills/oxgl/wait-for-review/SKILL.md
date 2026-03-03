@@ -1,5 +1,5 @@
 ---
-name: wait-for-review
+name: oxgl:wait-for-review
 description: Wait for AI code review on an MR, analyze findings, and offer to address issues
 ---
 

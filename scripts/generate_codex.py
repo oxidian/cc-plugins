@@ -61,9 +61,9 @@ def serialize_frontmatter(data: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def transform_frontmatter(frontmatter: dict, skill_name: str) -> dict:
+def transform_frontmatter(frontmatter: dict, plugin_name: str, skill_name: str) -> dict:
     """Apply frontmatter rules: remove CC-specific keys, add name."""
-    result = {"name": skill_name}
+    result = {"name": f"{plugin_name}:{skill_name}"}
     if "description" in frontmatter:
         result["description"] = frontmatter["description"]
     return result
@@ -145,7 +145,7 @@ def process_skill(plugin_name: str, skill_dir: Path, output_dir: Path) -> None:
     frontmatter, body = parse_frontmatter(content)
     skill_name = skill_dir.name
 
-    new_fm = transform_frontmatter(frontmatter, skill_name)
+    new_fm = transform_frontmatter(frontmatter, plugin_name, skill_name)
     new_body = transform_body(body)
 
     out_skill_dir = output_dir / plugin_name / skill_name
@@ -243,14 +243,15 @@ def install(dest: Path, plugins: list[str]) -> None:
         for skill_dir in sorted(plugin_out.iterdir()):
             if not skill_dir.is_dir():
                 continue
-            target = dest / skill_dir.name
+            namespaced = f"{plugin_name}:{skill_dir.name}"
+            target = dest / namespaced
             if target.exists():
                 if target.is_symlink():
                     target.unlink()
                 else:
                     shutil.rmtree(target)
             shutil.copytree(skill_dir, target)
-            print(f"Copied {skill_dir.name} → {target}")
+            print(f"Copied {namespaced} → {target}")
 
 
 def link(dest: Path, plugins: list[str]) -> None:
@@ -263,14 +264,15 @@ def link(dest: Path, plugins: list[str]) -> None:
         for skill_dir in sorted(plugin_out.iterdir()):
             if not skill_dir.is_dir():
                 continue
-            target = dest / skill_dir.name
+            namespaced = f"{plugin_name}:{skill_dir.name}"
+            target = dest / namespaced
             if target.exists() or target.is_symlink():
                 if target.is_symlink() or target.is_file():
                     target.unlink()
                 else:
                     shutil.rmtree(target)
             target.symlink_to(skill_dir.resolve())
-            print(f"Linked {skill_dir.name} → {skill_dir.resolve()}")
+            print(f"Linked {namespaced} → {skill_dir.resolve()}")
 
 
 def parse_plugins(value: str) -> list[str]:

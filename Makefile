@@ -12,6 +12,7 @@ format:
 	uv run ruff format .
 	uv run python scripts/format_json.py
 	uv run ty check --error-on-warning .
+	uv run python scripts/generate_codex.py
 
 check:
 	uv sync --frozen
@@ -20,6 +21,16 @@ check:
 	uv run python scripts/format_json.py --check
 	uv run ty check --error-on-warning .
 	uv run pytest tests/
+	uv run python scripts/generate_codex.py --check
+
+codex:
+	uv run python scripts/generate_codex.py
+
+install-codex:
+	uv run python scripts/generate_codex.py --install $(or $(DEST),$(HOME)/.codex/skills) --plugins $(or $(PLUGINS),ox,oxgh)
+
+link-codex:
+	uv run python scripts/generate_codex.py --link $(or $(DEST),$(HOME)/.codex/skills) --plugins $(or $(PLUGINS),ox,oxgh)
 
 bump:
 	uv run python scripts/bump.py $(filter-out $@,$(MAKECMDGOALS))

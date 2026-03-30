@@ -150,9 +150,9 @@ class TestShouldSkipThrottled:
         for count in [1, 2, 5]:
             assert should_skip_throttled(count, -1) is False
 
-    def test_first_edit_always_runs(self) -> None:
-        for fast_every in [1, 3, 5, 10]:
-            assert should_skip_throttled(1, fast_every) is False
+    def test_first_edit_skipped_when_throttled(self) -> None:
+        for fast_every in [3, 5, 10]:
+            assert should_skip_throttled(1, fast_every) is True
 
     def test_every_nth_edit_runs(self) -> None:
         assert should_skip_throttled(5, 5) is False

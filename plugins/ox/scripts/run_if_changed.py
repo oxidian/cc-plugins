@@ -52,12 +52,10 @@ def _save_edit_count(state_file: str, count: int) -> None:
 def should_skip_throttled(edit_count: int, fast_every: int) -> bool:
     """Decide whether to skip the fast check based on edit count.
 
-    Runs on edit 1 (first edit), then every ``fast_every``-th edit thereafter.
+    Runs every ``fast_every``-th edit (5, 10, 15, … by default).
     Returns True when the check should be *skipped*.
     """
     if fast_every <= 1:
-        return False
-    if edit_count == 1:
         return False
     return edit_count % fast_every != 0
 

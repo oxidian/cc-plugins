@@ -40,12 +40,12 @@ else
   }
 fi
 
-install_codex_plugins() {
-  if ! command -v codex >/dev/null 2>&1; then
-    echo "codex is not installed or not on PATH" >&2
-    return 1
-  fi
+if ! command -v codex >/dev/null 2>&1; then
+  echo "warning: codex is not installed or not on PATH; skipping Codex plugin installation" >&2
+  exit 0
+fi
 
+install_codex_plugins() {
   mkdir -p "$(dirname "$bootstrap_dir")" || return
 
   if [ -d "$bootstrap_dir/.git" ]; then

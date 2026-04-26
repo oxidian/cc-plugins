@@ -2,6 +2,8 @@
 
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 import textwrap
 from pathlib import Path
@@ -393,11 +395,55 @@ class TestEndToEnd:
 
         fast_command = hooks["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
         slow_command = hooks["hooks"]["Stop"][0]["hooks"][0]["command"]
-        runner_path = "$(git rev-parse --show-toplevel)/.codex/cc-plugins/codex/plugins/ox/scripts/run_if_changed.py"
+        bootstrap_runner_path = "$root/.codex/cc-plugins/codex/plugins/ox/scripts/run_if_changed.py"
+        repo_runner_path = "$root/codex/plugins/ox/scripts/run_if_changed.py"
 
         assert "./scripts/run_if_changed.py" not in hooks_text
-        assert fast_command == f"python3 {runner_path} --runtime codex --action fast"
-        assert slow_command == f"python3 {runner_path} --runtime codex --action slow"
+        assert "~/.codex/plugins/cache" not in hooks_text
+        assert fast_command.startswith("sh -c ")
+        assert slow_command.startswith("sh -c ")
+        assert bootstrap_runner_path in fast_command
+        assert repo_runner_path in fast_command
+        assert bootstrap_runner_path in slow_command
+        assert repo_runner_path in slow_command
+        assert "exit 2" in fast_command
+        assert "exit 2" in slow_command
+        assert "--runtime codex --action fast" in fast_command
+        assert "--runtime codex --action slow" in slow_command
+
+    def test_ox_codex_hook_falls_back_to_repo_local_runner(self, tmp_path: Path) -> None:
+        hooks_path = PLUGINS_DIR.parent / "codex" / "plugins" / "ox" / "hooks.json"
+        hooks = json.loads(hooks_path.read_text())
+        fast_command = hooks["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+
+        repo = tmp_path / "repo"
+        runner = repo / "codex" / "plugins" / "ox" / "scripts" / "run_if_changed.py"
+        workdir = repo / "nested" / "dir"
+        marker = tmp_path / "marker.txt"
+        runner.parent.mkdir(parents=True)
+        workdir.mkdir(parents=True)
+        runner.write_text(
+            "import os\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            "Path(os.environ['OX_HOOK_MARKER']).write_text(' '.join(sys.argv[1:]))\n"
+            "print('repo-local runner')\n"
+        )
+        subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
+
+        result = subprocess.run(
+            fast_command,
+            cwd=workdir,
+            env={**os.environ, "OX_HOOK_MARKER": str(marker)},
+            shell=True,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == "repo-local runner\n"
+        assert marker.read_text() == "--runtime codex --action fast"
 
     def test_commit_skill(self, tmp_path: Path) -> None:
         skill_dir = PLUGINS_DIR / "ox" / "skills" / "commit"

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 $(git rev-parse --show-toplevel)/.codex/cc-plugins/codex/plugins/ox/scripts/run_if_changed.py --runtime codex --action fast",
+            "command": "sh -c 'root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; bootstrap_runner=\"$root/.codex/cc-plugins/codex/plugins/ox/scripts/run_if_changed.py\"; repo_runner=\"$root/codex/plugins/ox/scripts/run_if_changed.py\"; if [ -f \"$bootstrap_runner\" ]; then runner=\"$bootstrap_runner\"; elif [ -f \"$repo_runner\" ]; then runner=\"$repo_runner\"; else echo \"ox hook runner not found; checked $bootstrap_runner and $repo_runner\" >&2; exit 2; fi; exec python3 \"$runner\" --runtime codex --action fast'",
             "timeout": 30,
             "statusMessage": "Running fast checks"
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 $(git rev-parse --show-toplevel)/.codex/cc-plugins/codex/plugins/ox/scripts/run_if_changed.py --runtime codex --action slow",
+            "command": "sh -c 'root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; bootstrap_runner=\"$root/.codex/cc-plugins/codex/plugins/ox/scripts/run_if_changed.py\"; repo_runner=\"$root/codex/plugins/ox/scripts/run_if_changed.py\"; if [ -f \"$bootstrap_runner\" ]; then runner=\"$bootstrap_runner\"; elif [ -f \"$repo_runner\" ]; then runner=\"$repo_runner\"; else echo \"ox hook runner not found; checked $bootstrap_runner and $repo_runner\" >&2; exit 2; fi; exec python3 \"$runner\" --runtime codex --action slow'",
             "timeout": 120,
             "statusMessage": "Running final checks"
           }

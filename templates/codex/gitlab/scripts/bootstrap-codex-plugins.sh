@@ -46,25 +46,25 @@ install_codex_plugins() {
     return 1
   fi
 
-  mkdir -p "$(dirname "$bootstrap_dir")"
+  mkdir -p "$(dirname "$bootstrap_dir")" || return
 
   if [ -d "$bootstrap_dir/.git" ]; then
-    git -C "$bootstrap_dir" remote set-url origin "$repo_url"
+    git -C "$bootstrap_dir" remote set-url origin "$repo_url" || return
   else
     if [ -e "$bootstrap_dir" ]; then
       echo "$bootstrap_dir exists but is not a git checkout" >&2
       return 1
     fi
-    git clone --quiet --filter=blob:none "$repo_url" "$bootstrap_dir"
+    git clone --quiet --filter=blob:none "$repo_url" "$bootstrap_dir" || return
   fi
 
-  git -C "$bootstrap_dir" fetch --quiet --depth 1 origin "$repo_ref"
-  git -C "$bootstrap_dir" checkout --quiet --detach FETCH_HEAD
+  git -C "$bootstrap_dir" fetch --quiet --depth 1 origin "$repo_ref" || return
+  git -C "$bootstrap_dir" checkout --quiet --detach FETCH_HEAD || return
 
   python3 "$bootstrap_dir/scripts/install_codex_plugins.py" \
     --cwd "$repo_root" \
     --plugins "$plugins" \
-    --quiet
+    --quiet || return
 }
 
 run_step "Installing Codex plugins" install_codex_plugins

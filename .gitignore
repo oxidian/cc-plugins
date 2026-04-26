@@ -1,3 +1,4 @@
 .claude/settings.local.json
 .agents/skills/
+.codex/
 __pycache__/

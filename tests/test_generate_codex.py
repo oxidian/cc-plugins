@@ -337,8 +337,37 @@ class TestPluginPackage:
         skill = (output_dir / "oxgh" / "skills" / "open-pr" / "SKILL.md").read_text()
         assert '"name": "oxgh"' in manifest
         assert '"skills": "./skills/"' in manifest
+        assert '"hooks"' not in manifest
         assert "name: open-pr" in skill
         assert "allowed-tools" not in skill
+
+    def test_generates_plugin_hooks_and_scripts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        plugins_dir = tmp_path / "plugins"
+        plugin_dir = plugins_dir / "ox"
+        (plugin_dir / ".claude-plugin").mkdir(parents=True)
+        (plugin_dir / ".claude-plugin" / "plugin.json").write_text(
+            "{\n"
+            '  "name": "ox",\n'
+            '  "description": "Base plugin",\n'
+            '  "version": "0.1.0",\n'
+            '  "author": {"name": "Oxidian"}\n'
+            "}\n"
+        )
+        (plugin_dir / "codex").mkdir()
+        (plugin_dir / "codex" / "hooks.json").write_text('{"hooks": {"Stop": []}}\n')
+        (plugin_dir / "scripts" / "__pycache__").mkdir(parents=True)
+        (plugin_dir / "scripts" / "run_if_changed.py").write_text("# runner\n")
+        (plugin_dir / "scripts" / "__pycache__" / "run_if_changed.pyc").write_text("cache\n")
+        monkeypatch.setattr(generate_codex, "PLUGINS_DIR", plugins_dir)
+
+        output_dir = tmp_path / "codex" / "plugins"
+        generate_plugin_package("ox", output_dir)
+
+        manifest = (output_dir / "ox" / ".codex-plugin" / "plugin.json").read_text()
+        assert '"hooks": "./hooks.json"' in manifest
+        assert (output_dir / "ox" / "hooks.json").read_text() == '{"hooks": {"Stop": []}}\n'
+        assert (output_dir / "ox" / "scripts" / "run_if_changed.py").read_text() == "# runner\n"
+        assert not (output_dir / "ox" / "scripts" / "__pycache__").exists()
 
     def test_writes_marketplace(self, tmp_path: Path) -> None:
         marketplace = tmp_path / ".agents" / "plugins" / "marketplace.json"

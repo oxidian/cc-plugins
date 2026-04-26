@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ./scripts/run_if_changed.py --runtime codex --action fast",
+            "timeout": 30,
+            "statusMessage": "Running fast checks"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ./scripts/run_if_changed.py --runtime codex --action slow",
+            "timeout": 120,
+            "statusMessage": "Running final checks"
+          }
+        ]
+      }
+    ]
+  }
+}

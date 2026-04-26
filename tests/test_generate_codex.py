@@ -1,6 +1,7 @@
 """Tests for generate_codex.py."""
 
 import importlib.util
+import json
 import sys
 import textwrap
 from pathlib import Path
@@ -384,6 +385,19 @@ class TestPluginPackage:
 
 class TestEndToEnd:
     """Test processing actual SKILL.md files from the repo."""
+
+    def test_ox_codex_hooks_use_installed_runner_path(self) -> None:
+        hooks_path = PLUGINS_DIR.parent / "codex" / "plugins" / "ox" / "hooks.json"
+        hooks_text = hooks_path.read_text()
+        hooks = json.loads(hooks_text)
+
+        fast_command = hooks["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+        slow_command = hooks["hooks"]["Stop"][0]["hooks"][0]["command"]
+        runner_path = "$(git rev-parse --show-toplevel)/.codex/cc-plugins/codex/plugins/ox/scripts/run_if_changed.py"
+
+        assert "./scripts/run_if_changed.py" not in hooks_text
+        assert fast_command == f"python3 {runner_path} --runtime codex --action fast"
+        assert slow_command == f"python3 {runner_path} --runtime codex --action slow"
 
     def test_commit_skill(self, tmp_path: Path) -> None:
         skill_dir = PLUGINS_DIR / "ox" / "skills" / "commit"

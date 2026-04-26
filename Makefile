@@ -1,6 +1,8 @@
 CODEX_INSTALL_PLUGINS := ox,oxgh
 CODEX_DEV_PLUGINS := ox,oxgh,oxgl
 
+.PHONY: setup dev dev-codex format check codex install-codex link-codex bump bump-check
+
 setup:
 	@bash scripts/banner.sh
 	uv sync --frozen

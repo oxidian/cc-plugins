@@ -1,0 +1,36 @@
+{
+  "name": "oxidian",
+  "interface": {
+    "displayName": "Oxidian"
+  },
+  "plugins": [
+    {
+      "name": "ox",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/oxidian/cc-plugins.git",
+        "path": "codex/plugins/ox",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "oxgh",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/oxidian/cc-plugins.git",
+        "path": "codex/plugins/oxgh",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 """Generate Codex-compatible skills from Claude Code SKILL.md files."""
 
 import argparse
+import json
 import re
 import shutil
 import sys
@@ -11,6 +12,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parent.parent
 PLUGINS_DIR = REPO_ROOT / "plugins"
 OUTPUT_DIR = REPO_ROOT / "codex" / "skills"
+CODEX_PLUGINS_DIR = REPO_ROOT / "codex" / "plugins"
+CODEX_MARKETPLACE = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
 DEFAULT_PLUGINS = "ox,oxgh"
 
 TOOL_CALL_PATTERN = re.compile(
@@ -61,9 +64,16 @@ def serialize_frontmatter(data: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def transform_frontmatter(frontmatter: dict, plugin_name: str, skill_name: str) -> dict:
+def transform_frontmatter(
+    frontmatter: dict,
+    plugin_name: str,
+    skill_name: str,
+    *,
+    namespaced: bool = True,
+) -> dict:
     """Apply frontmatter rules: remove CC-specific keys, add name."""
-    result = {"name": f"{plugin_name}:{skill_name}"}
+    name = f"{plugin_name}:{skill_name}" if namespaced else skill_name
+    result = {"name": name}
     if "description" in frontmatter:
         result["description"] = frontmatter["description"]
     return result
@@ -140,7 +150,14 @@ def resolve_script_paths(content: str, scripts_dir: Path) -> str:
     return re.sub(r"scripts/(\S+\.py)", lambda m: str(scripts_dir / m.group(1)), content)
 
 
-def process_skill(plugin_name: str, skill_dir: Path, output_dir: Path) -> None:
+def process_skill(
+    plugin_name: str,
+    skill_dir: Path,
+    output_dir: Path,
+    *,
+    namespaced: bool = True,
+    include_plugin_dir: bool = True,
+) -> None:
     """Transform one skill and write to output_dir."""
     skill_md = skill_dir / "SKILL.md"
     if not skill_md.exists():
@@ -150,10 +167,10 @@ def process_skill(plugin_name: str, skill_dir: Path, output_dir: Path) -> None:
     frontmatter, body = parse_frontmatter(content)
     skill_name = skill_dir.name
 
-    new_fm = transform_frontmatter(frontmatter, plugin_name, skill_name)
+    new_fm = transform_frontmatter(frontmatter, plugin_name, skill_name, namespaced=namespaced)
     new_body = transform_body(body)
 
-    out_skill_dir = output_dir / plugin_name / skill_name
+    out_skill_dir = output_dir / plugin_name / skill_name if include_plugin_dir else output_dir / skill_name
     out_skill_dir.mkdir(parents=True, exist_ok=True)
 
     output = serialize_frontmatter(new_fm) + new_body
@@ -169,11 +186,52 @@ def process_skill(plugin_name: str, skill_dir: Path, output_dir: Path) -> None:
             shutil.copy2(script_path, out_scripts_dir / script_path.name)
 
 
-def generate(plugins: list[str]) -> None:
-    """Generate all Codex skills into OUTPUT_DIR."""
-    # Clean output dir for selected plugins
+def write_json(path: Path, data: dict) -> None:
+    """Write formatted JSON."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+
+def read_claude_plugin_manifest(plugin_name: str) -> dict:
+    """Read the Claude plugin manifest for metadata reuse."""
+    manifest = PLUGINS_DIR / plugin_name / ".claude-plugin" / "plugin.json"
+    if not manifest.exists():
+        return {
+            "name": plugin_name,
+            "version": "0.1.0",
+            "description": f"{plugin_name} Codex skills",
+            "author": {"name": "Oxidian"},
+        }
+    return json.loads(manifest.read_text())
+
+
+def codex_plugin_manifest(plugin_name: str) -> dict:
+    """Build a Codex plugin manifest from the Claude plugin metadata."""
+    source = read_claude_plugin_manifest(plugin_name)
+    author = source.get("author", {"name": "Oxidian"})
+    author_name = author.get("name", "Oxidian") if isinstance(author, dict) else str(author)
+    description = source.get("description", f"{plugin_name} Codex skills")
+
+    manifest = {
+        "name": source.get("name", plugin_name),
+        "version": source.get("version", "0.1.0"),
+        "description": description,
+        "author": author,
+        "skills": "./skills/",
+        "interface": {
+            "displayName": source.get("name", plugin_name),
+            "shortDescription": description,
+            "developerName": author_name,
+            "category": "Productivity",
+        },
+    }
+    return manifest
+
+
+def generate_skills(plugins: list[str], output_dir: Path = OUTPUT_DIR) -> None:
+    """Generate standalone Codex skills into output_dir."""
     for plugin_name in plugins:
-        plugin_out = OUTPUT_DIR / plugin_name
+        plugin_out = output_dir / plugin_name
         if plugin_out.exists():
             shutil.rmtree(plugin_out)
 
@@ -183,51 +241,134 @@ def generate(plugins: list[str]) -> None:
             continue
         for skill_dir in sorted(skills_dir.iterdir()):
             if skill_dir.is_dir():
-                process_skill(plugin_name, skill_dir, OUTPUT_DIR)
+                process_skill(plugin_name, skill_dir, output_dir)
+
+
+def generate_plugin_package(plugin_name: str, output_dir: Path = CODEX_PLUGINS_DIR) -> None:
+    """Generate a Codex plugin package for one plugin."""
+    plugin_out = output_dir / plugin_name
+    if plugin_out.exists():
+        shutil.rmtree(plugin_out)
+
+    skills_dir = PLUGINS_DIR / plugin_name / "skills"
+    if skills_dir.exists():
+        for skill_dir in sorted(skills_dir.iterdir()):
+            if skill_dir.is_dir():
+                process_skill(
+                    plugin_name,
+                    skill_dir,
+                    plugin_out / "skills",
+                    namespaced=False,
+                    include_plugin_dir=False,
+                )
+
+    write_json(plugin_out / ".codex-plugin" / "plugin.json", codex_plugin_manifest(plugin_name))
+
+
+def marketplace_entry(plugin_name: str) -> dict:
+    """Build a Codex marketplace entry for a generated local plugin."""
+    return {
+        "name": plugin_name,
+        "source": {
+            "source": "local",
+            "path": f"./codex/plugins/{plugin_name}",
+        },
+        "policy": {
+            "installation": "AVAILABLE",
+            "authentication": "ON_INSTALL",
+        },
+        "category": "Productivity",
+    }
+
+
+def write_marketplace(plugins: list[str], path: Path = CODEX_MARKETPLACE) -> None:
+    """Write the repo-local Codex plugin marketplace."""
+    data = {
+        "name": "oxidian",
+        "interface": {
+            "displayName": "Oxidian",
+        },
+        "plugins": [marketplace_entry(plugin_name) for plugin_name in plugins],
+    }
+    write_json(path, data)
+
+
+def generate(plugins: list[str], *, include_plugins: bool = True) -> None:
+    """Generate all Codex outputs."""
+    generate_skills(plugins)
+
+    if include_plugins:
+        for plugin_name in plugins:
+            generate_plugin_package(plugin_name)
+        if set(plugins) == set(all_plugins()):
+            write_marketplace(plugins)
+
+
+def compare_tree(expected_root: Path, actual_root: Path, display_root: Path) -> list[str]:
+    """Compare a generated tree against the checked-in tree."""
+    mismatches: list[str] = []
+    if not expected_root.exists():
+        return mismatches
+    if not actual_root.exists():
+        mismatches.append(f"{display_root}/: missing entirely")
+        return mismatches
+
+    for expected_file in sorted(expected_root.rglob("*")):
+        if expected_file.is_dir():
+            continue
+        rel = expected_file.relative_to(expected_root)
+        actual_file = actual_root / rel
+        display = display_root / rel
+        if not actual_file.exists():
+            mismatches.append(f"{display}: missing")
+        elif expected_file.read_text() != actual_file.read_text():
+            mismatches.append(f"{display}: out of date")
+
+    for actual_file in sorted(actual_root.rglob("*")):
+        if actual_file.is_dir():
+            continue
+        rel = actual_file.relative_to(actual_root)
+        expected_file = expected_root / rel
+        display = display_root / rel
+        if not expected_file.exists():
+            mismatches.append(f"{display}: unexpected file")
+
+    return mismatches
 
 
 def check(plugins: list[str]) -> int:
     """Verify generated output matches source. Returns 0 if in sync, 1 if not."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_output = Path(tmpdir) / "codex" / "skills"
-        tmp_output.mkdir(parents=True)
-
+        tmp_plugins = Path(tmpdir) / "codex" / "plugins"
+        tmp_marketplace = Path(tmpdir) / ".agents" / "plugins" / "marketplace.json"
+        check_marketplace = set(plugins) == set(all_plugins())
+        generate_skills(plugins, tmp_output)
         for plugin_name in plugins:
-            skills_dir = PLUGINS_DIR / plugin_name / "skills"
-            if not skills_dir.exists():
-                continue
-            for skill_dir in sorted(skills_dir.iterdir()):
-                if skill_dir.is_dir():
-                    process_skill(plugin_name, skill_dir, tmp_output)
+            generate_plugin_package(plugin_name, tmp_plugins)
+        if check_marketplace:
+            write_marketplace(plugins, tmp_marketplace)
 
-        # Compare
         mismatches: list[str] = []
         for plugin_name in plugins:
-            tmp_plugin = tmp_output / plugin_name
-            out_plugin = OUTPUT_DIR / plugin_name
-            if not tmp_plugin.exists():
-                continue
-            if not out_plugin.exists():
-                mismatches.append(f"{plugin_name}/: missing entirely")
-                continue
-            for tmp_file in sorted(tmp_plugin.rglob("*")):
-                if tmp_file.is_dir():
-                    continue
-                rel = tmp_file.relative_to(tmp_output)
-                out_file = OUTPUT_DIR / rel
-                if not out_file.exists():
-                    mismatches.append(f"{rel}: missing")
-                elif tmp_file.read_text() != out_file.read_text():
-                    mismatches.append(f"{rel}: out of date")
+            mismatches.extend(
+                compare_tree(
+                    tmp_output / plugin_name, OUTPUT_DIR / plugin_name, Path("codex") / "skills" / plugin_name
+                )
+            )
+            mismatches.extend(
+                compare_tree(
+                    tmp_plugins / plugin_name,
+                    CODEX_PLUGINS_DIR / plugin_name,
+                    Path("codex") / "plugins" / plugin_name,
+                )
+            )
 
-            # Check for extra files in output
-            for out_file in sorted(out_plugin.rglob("*")):
-                if out_file.is_dir():
-                    continue
-                rel = out_file.relative_to(OUTPUT_DIR)
-                tmp_file = tmp_output / rel
-                if not tmp_file.exists():
-                    mismatches.append(f"{rel}: unexpected file")
+        if check_marketplace:
+            if not CODEX_MARKETPLACE.exists():
+                mismatches.append(f"{CODEX_MARKETPLACE.relative_to(REPO_ROOT)}: missing")
+            elif tmp_marketplace.read_text() != CODEX_MARKETPLACE.read_text():
+                mismatches.append(f"{CODEX_MARKETPLACE.relative_to(REPO_ROOT)}: out of date")
 
         if mismatches:
             print("Codex skills out of sync with source:")
@@ -337,12 +478,12 @@ def main() -> int:
         return check(plugins)
 
     if args.install:
-        generate(plugins)
+        generate(plugins, include_plugins=False)
         install(Path(args.install), plugins)
         return 0
 
     if args.link:
-        generate(plugins)
+        generate(plugins, include_plugins=False)
         link(Path(args.link), plugins)
         return 0
 

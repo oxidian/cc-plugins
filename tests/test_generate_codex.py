@@ -27,6 +27,8 @@ transform_body = generate_codex.transform_body
 detect_script_deps = generate_codex.detect_script_deps
 process_skill = generate_codex.process_skill
 resolve_script_paths = generate_codex.resolve_script_paths
+generate_plugin_package = generate_codex.generate_plugin_package
+write_marketplace = generate_codex.write_marketplace
 install = generate_codex.install
 link = generate_codex.link
 
@@ -267,6 +269,71 @@ class TestProcessSkill:
         out_script = output_dir / "oxgh" / "wait-for-review" / "scripts" / "wait_for_ai_review.py"
         assert out_script.exists()
         assert out_script.read_text() == "# review script"
+
+    def test_can_write_plugin_local_skill(self, tmp_path: Path) -> None:
+        skill_dir = tmp_path / "src" / "skills" / "open-pr"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\n"
+            "allowed-tools: Bash(gh pr create:*)\n"
+            "description: Open PR\n"
+            "---\n"
+            "\n"
+            "## Context\n"
+            "- Status: !`git status`\n"
+        )
+
+        output_dir = tmp_path / "plugin" / "skills"
+        process_skill("oxgh", skill_dir, output_dir, namespaced=False, include_plugin_dir=False)
+
+        result = (output_dir / "open-pr" / "SKILL.md").read_text()
+        assert "name: open-pr" in result
+        assert "name: oxgh:open-pr" not in result
+        assert "allowed-tools" not in result
+        assert "!`" not in result
+
+
+class TestPluginPackage:
+    def test_generates_manifest_and_local_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        plugins_dir = tmp_path / "plugins"
+        plugin_dir = plugins_dir / "oxgh"
+        (plugin_dir / ".claude-plugin").mkdir(parents=True)
+        (plugin_dir / ".claude-plugin" / "plugin.json").write_text(
+            "{\n"
+            '  "name": "oxgh",\n'
+            '  "description": "GitHub workflow skills using gh CLI",\n'
+            '  "version": "0.1.4",\n'
+            '  "author": {"name": "Oxidian"}\n'
+            "}\n"
+        )
+        skill_dir = plugin_dir / "skills" / "open-pr"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\nallowed-tools: Bash(gh pr create:*)\ndescription: Open PR\n---\n\nCreate a PR.\n"
+        )
+        monkeypatch.setattr(generate_codex, "PLUGINS_DIR", plugins_dir)
+
+        output_dir = tmp_path / "codex" / "plugins"
+        generate_plugin_package("oxgh", output_dir)
+
+        manifest = (output_dir / "oxgh" / ".codex-plugin" / "plugin.json").read_text()
+        skill = (output_dir / "oxgh" / "skills" / "open-pr" / "SKILL.md").read_text()
+        assert '"name": "oxgh"' in manifest
+        assert '"skills": "./skills/"' in manifest
+        assert "name: open-pr" in skill
+        assert "allowed-tools" not in skill
+
+    def test_writes_marketplace(self, tmp_path: Path) -> None:
+        marketplace = tmp_path / ".agents" / "plugins" / "marketplace.json"
+
+        write_marketplace(["ox", "oxgh"], marketplace)
+
+        result = marketplace.read_text()
+        assert '"name": "oxidian"' in result
+        assert '"path": "./codex/plugins/ox"' in result
+        assert '"path": "./codex/plugins/oxgh"' in result
+        assert '"installation": "AVAILABLE"' in result
+        assert '"authentication": "ON_INSTALL"' in result
 
 
 class TestEndToEnd:

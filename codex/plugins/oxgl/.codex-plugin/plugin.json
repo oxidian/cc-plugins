@@ -1,0 +1,15 @@
+{
+  "name": "oxgl",
+  "version": "0.1.5",
+  "description": "GitLab workflow — MR, issue, and merge skills using glab CLI",
+  "author": {
+    "name": "Oxidian"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "oxgl",
+    "shortDescription": "GitLab workflow — MR, issue, and merge skills using glab CLI",
+    "developerName": "Oxidian",
+    "category": "Productivity"
+  }
+}

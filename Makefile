@@ -1,3 +1,6 @@
+CODEX_INSTALL_PLUGINS := ox,oxgh
+CODEX_DEV_PLUGINS := ox,oxgh,oxgl
+
 setup:
 	@bash scripts/banner.sh
 	uv sync --frozen
@@ -5,6 +8,10 @@ setup:
 
 dev:
 	claude --plugin-dir ./plugins/ox --plugin-dir ./plugins/oxgh --plugin-dir ./plugins/oxgl
+
+dev-codex:
+	uv run python scripts/generate_codex.py --link .agents/skills --plugins $(or $(PLUGINS),$(CODEX_DEV_PLUGINS))
+	codex
 
 format:
 	uv sync --frozen
@@ -27,10 +34,10 @@ codex:
 	uv run python scripts/generate_codex.py
 
 install-codex:
-	uv run python scripts/generate_codex.py --install $(or $(DEST),$(HOME)/.codex/skills) --plugins $(or $(PLUGINS),ox,oxgh)
+	uv run python scripts/generate_codex.py --install $(or $(DEST),$(HOME)/.codex/skills) --plugins $(or $(PLUGINS),$(CODEX_INSTALL_PLUGINS))
 
 link-codex:
-	uv run python scripts/generate_codex.py --link $(or $(DEST),$(HOME)/.codex/skills) --plugins $(or $(PLUGINS),ox,oxgh)
+	uv run python scripts/generate_codex.py --link $(or $(DEST),$(HOME)/.codex/skills) --plugins $(or $(PLUGINS),$(CODEX_INSTALL_PLUGINS))
 
 bump:
 	uv run python scripts/bump.py $(filter-out $@,$(MAKECMDGOALS))

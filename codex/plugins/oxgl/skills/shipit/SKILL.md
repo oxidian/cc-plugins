@@ -1,0 +1,32 @@
+---
+name: shipit
+description: Commit, push, and open a merge request with auto-merge
+---
+
+## Context
+
+First, run these commands and review their output:
+
+- Current git status: `git status`
+- Current git diff (staged and unstaged changes): `git diff HEAD`
+- Current branch: `git branch --show-current`
+
+## Commit and MR style
+
+- Use a short commit/MR title (one line, imperative mood) that describes WHAT changed - never meta-messages like "Address review feedback" or "Fix MR comments"
+- The commit/MR body should usually be blank - the code should speak for itself
+- ONLY add a body to explain NON-OBVIOUS changes that aren't clear from the code
+- AVOID summarising or describing what the code does in the MR body - that's redundant. AVOID including test plans.
+- If we were working on a known GitLab issue, include "Closes #ISSUE" in the MR body
+- See recent commits for examples (ignore bot commits)
+
+## Your task
+
+Based on the above changes:
+
+1. Create a new branch if on main (do NOT add timestamps to branch names)
+2. Create a single commit with an appropriate message
+3. Push the branch to origin
+4. Create a merge request using `glab mr create`. Do not use `--fill` option.
+5. Enable auto-merge by running exactly `glab mr merge --when-pipeline-succeeds` (no other flags)
+6. Execute each step as a separate command. Do NOT chain commands with && or ;.

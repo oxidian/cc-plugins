@@ -11,6 +11,7 @@ Claude Code plugin marketplace providing commit workflows, code quality hooks, a
 ```bash
 make setup      # Install dependencies and pre-commit hooks
 make dev        # Run Claude Code with local plugins loaded
+make dev-codex  # Run Codex with local generated skills linked
 make format     # Auto-format code
 make check      # Run this instead of pytest directly - includes formatting, linting, type checking, and tests
 make bump       # Bump plugin versions

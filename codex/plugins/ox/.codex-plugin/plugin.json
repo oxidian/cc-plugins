@@ -1,0 +1,15 @@
+{
+  "name": "ox",
+  "version": "0.0.13",
+  "description": "Base plugin — commit command, code quality hooks, auto-format and check hooks for all projects",
+  "author": {
+    "name": "Oxidian"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ox",
+    "shortDescription": "Base plugin — commit command, code quality hooks, auto-format and check hooks for all projects",
+    "developerName": "Oxidian",
+    "category": "Productivity"
+  }
+}

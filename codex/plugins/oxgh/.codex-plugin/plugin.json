@@ -1,0 +1,15 @@
+{
+  "name": "oxgh",
+  "version": "0.1.4",
+  "description": "GitHub workflow — PR, issue, triage, and merge skills using gh CLI",
+  "author": {
+    "name": "Oxidian"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "oxgh",
+    "shortDescription": "GitHub workflow — PR, issue, triage, and merge skills using gh CLI",
+    "developerName": "Oxidian",
+    "category": "Productivity"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "oxidian",
+  "interface": {
+    "displayName": "Oxidian"
+  },
+  "plugins": [
+    {
+      "name": "ox",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/ox"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "oxgh",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/oxgh"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "oxgl",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/oxgl"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

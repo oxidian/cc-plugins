@@ -46,27 +46,57 @@ codex/plugins/             # Codex plugin packages with .codex-plugin/plugin.jso
 
 `make dev-codex` also creates ignored `.agents/skills/` symlinks so Codex can see the local generated skills while developing this repo.
 
-For team-wide Codex usage, install at the consuming repo level by committing a Codex marketplace file to that repo.
+For team-wide Codex usage, install at the consuming repo level by committing a Codex marketplace file and bootstrap script to that repo.
 
-**GitHub-backed repos** should copy [templates/codex/github/.agents/plugins/marketplace.json](templates/codex/github/.agents/plugins/marketplace.json) to:
-
-```text
-<your-repo>/.agents/plugins/marketplace.json
-```
-
-That enables `ox` and `oxgh` from this repo's generated Codex plugin packages.
-
-**GitLab-backed repos** should copy [templates/codex/gitlab/.agents/plugins/marketplace.json](templates/codex/gitlab/.agents/plugins/marketplace.json) to:
+**GitHub-backed repos** should copy:
 
 ```text
-<your-repo>/.agents/plugins/marketplace.json
+templates/codex/github/.agents/plugins/marketplace.json  →  <your-repo>/.agents/plugins/marketplace.json
+templates/codex/github/scripts/bootstrap-codex-plugins.sh →  <your-repo>/scripts/bootstrap-codex-plugins.sh
 ```
 
-That enables `ox` and `oxgl` from this repo's generated Codex plugin packages.
+That enables and installs `ox` and `oxgh` from this repo's generated Codex plugin packages.
 
-The templates use Git-backed `git-subdir` plugin sources, so each consuming repo stores only the small marketplace file. If you mirror `cc-plugins` to GitLab or want reproducible installs, update each `source.url` and pin `source.ref` to a tag or commit SHA before committing the template.
+**GitLab-backed repos** should copy:
+
+```text
+templates/codex/gitlab/.agents/plugins/marketplace.json  →  <your-repo>/.agents/plugins/marketplace.json
+templates/codex/gitlab/scripts/bootstrap-codex-plugins.sh →  <your-repo>/scripts/bootstrap-codex-plugins.sh
+```
+
+That enables and installs `ox` and `oxgl` from this repo's generated Codex plugin packages.
+
+The marketplace templates use Git-backed `git-subdir` plugin sources with `INSTALLED_BY_DEFAULT`, so each consuming repo stores only the marketplace file and bootstrap script. The bootstrap script starts Codex's app-server and installs any listed plugins that are not already installed and enabled.
+
+Add the bootstrap to your repo setup command:
+
+```make
+setup:
+	@bash scripts/setup.sh
+	@bash scripts/bootstrap-codex-plugins.sh
+```
+
+The bootstrap keeps its temporary checkout under:
+
+```text
+<your-repo>/.codex/cc-plugins
+```
+
+Add `<your-repo>/.codex/` to that repo's `.gitignore`. If you mirror `cc-plugins` to GitLab or want reproducible installs, update each marketplace `source.url` / `source.ref` before committing the template. At runtime, the bootstrap can be overridden with `CODEX_PLUGINS_REPO_URL`, `CODEX_PLUGINS_REPO_REF`, `CODEX_PLUGINS_BOOTSTRAP_DIR`, and `CODEX_PLUGINS`.
 
 With the GitHub template, skills are available in that repo as `$open-pr`, `$issue`, `$triage`, `$wait-for-review`, `$merge-or-fix`, and `$shipit`. With the GitLab template, the equivalent MR-oriented skills are available from `oxgl`.
+
+For reference, the marketplace file lives at:
+
+```text
+<your-repo>/.agents/plugins/marketplace.json
+```
+
+and the bootstrap script lives at:
+
+```text
+<your-repo>/scripts/bootstrap-codex-plugins.sh
+```
 
 For personal/global Codex usage, you can still install or link the generated standalone skills into your Codex home:
 

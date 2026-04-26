@@ -110,6 +110,8 @@ Those user-level installed skills are available from any repo as `$oxgh:open-pr`
 
 The generated Codex plugin packages under `codex/plugins/` are for Codex plugin marketplace workflows. The repo-local marketplace at `.agents/plugins/marketplace.json` points at those packages when working in this repository.
 
+The generated `ox` Codex plugin also includes PostToolUse and Stop hooks. Configure checks with the same `.claude/ox-hooks.json` file shown below: Codex runs `fast` checks after edits and `slow` checks before it finishes a turn.
+
 ### Claude Code
 
 #### 1. Add the marketplace to your project

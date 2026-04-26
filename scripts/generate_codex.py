@@ -214,6 +214,7 @@ def codex_plugin_manifest(plugin_name: str) -> dict:
     author = source.get("author", {"name": "Oxidian"})
     author_name = author.get("name", "Oxidian") if isinstance(author, dict) else str(author)
     description = source.get("description", f"{plugin_name} Codex skills")
+    hooks_path = PLUGINS_DIR / plugin_name / "codex" / "hooks.json"
 
     manifest = {
         "name": source.get("name", plugin_name),
@@ -228,6 +229,8 @@ def codex_plugin_manifest(plugin_name: str) -> dict:
             "category": "Productivity",
         },
     }
+    if hooks_path.exists():
+        manifest["hooks"] = "./hooks.json"
     return manifest
 
 
@@ -264,6 +267,19 @@ def generate_plugin_package(plugin_name: str, output_dir: Path = CODEX_PLUGINS_D
                     namespaced=False,
                     include_plugin_dir=False,
                 )
+
+    hooks_path = PLUGINS_DIR / plugin_name / "codex" / "hooks.json"
+    if hooks_path.exists():
+        plugin_out.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(hooks_path, plugin_out / "hooks.json")
+
+        scripts_dir = PLUGINS_DIR / plugin_name / "scripts"
+        if scripts_dir.exists():
+            shutil.copytree(
+                scripts_dir,
+                plugin_out / "scripts",
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            )
 
     write_json(plugin_out / ".codex-plugin" / "plugin.json", codex_plugin_manifest(plugin_name))
 

@@ -11,5 +11,6 @@
     "shortDescription": "Base plugin — commit command, code quality hooks, auto-format and check hooks for all projects",
     "developerName": "Oxidian",
     "category": "Productivity"
-  }
+  },
+  "hooks": "./hooks.json"
 }

@@ -1,6 +1,9 @@
 """Tests for run_if_changed.py import detection logic."""
 
 import importlib.util
+import json
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -21,6 +24,39 @@ should_skip_throttled = run_if_changed.should_skip_throttled
 _get_state_file_path = run_if_changed._get_state_file_path
 _load_edit_count = run_if_changed._load_edit_count
 _save_edit_count = run_if_changed._save_edit_count
+
+
+def _command_for_script(script: Path) -> str:
+    return f"{shlex.quote(sys.executable)} {shlex.quote(str(script))}"
+
+
+def _init_changed_repo(tmp_path: Path, command: str) -> Path:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "ox-hooks.json").write_text(
+        json.dumps({"checks": [{"fast": command, "slow": command}], "fast_every": 1}) + "\n"
+    )
+    (tmp_path / "changed.txt").write_text("changed\n")
+    subdir = tmp_path / "subdir"
+    subdir.mkdir()
+    return subdir
+
+
+def _run_codex_hook(cwd: Path, action: str) -> subprocess.CompletedProcess[str]:
+    payload = {
+        "session_id": f"test-{action}",
+        "cwd": str(cwd),
+        "hook_event_name": "Stop" if action == "slow" else "PostToolUse",
+        "permission_mode": "default",
+    }
+    return subprocess.run(
+        [sys.executable, str(_script_path), "--runtime", "codex", "--action", action],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+        check=False,
+    )
 
 
 class TestPythonImportOnly:
@@ -186,3 +222,30 @@ class TestEditCountStateFile:
         path = _get_state_file_path("abc-123")
         assert "abc-123" in path
         assert path.startswith("/tmp/")
+
+
+class TestCodexRuntime:
+    """Tests for Codex hook output semantics."""
+
+    def test_success_has_no_output_and_derives_project_dir_from_cwd(self, tmp_path: Path) -> None:
+        check_script = tmp_path / "check.py"
+        check_script.write_text("print('ok')\n")
+        subdir = _init_changed_repo(tmp_path, _command_for_script(check_script))
+
+        result = _run_codex_hook(subdir, "slow")
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_failure_exits_two_with_feedback_on_stderr(self, tmp_path: Path) -> None:
+        check_script = tmp_path / "check.py"
+        check_script.write_text("import sys\nprint('bad check output')\nsys.exit(1)\n")
+        subdir = _init_changed_repo(tmp_path, _command_for_script(check_script))
+
+        result = _run_codex_hook(subdir, "slow")
+
+        assert result.returncode == 2
+        assert result.stdout == ""
+        assert "Final checks failed. Fix these issues before finishing." in result.stderr
+        assert "bad check output" in result.stderr

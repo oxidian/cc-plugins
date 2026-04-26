@@ -28,6 +28,7 @@ detect_script_deps = generate_codex.detect_script_deps
 process_skill = generate_codex.process_skill
 resolve_script_paths = generate_codex.resolve_script_paths
 generate_plugin_package = generate_codex.generate_plugin_package
+write_json = generate_codex.write_json
 write_marketplace = generate_codex.write_marketplace
 install = generate_codex.install
 link = generate_codex.link
@@ -294,6 +295,22 @@ class TestProcessSkill:
 
 
 class TestPluginPackage:
+    def test_write_json_skips_unchanged_file(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        output = tmp_path / ".agents" / "plugins" / "marketplace.json"
+        output.parent.mkdir(parents=True)
+        output.write_text('{\n  "name": "oxidian"\n}\n')
+
+        def fail_write_text(self: Path, data: str) -> int:
+            raise OSError(f"unexpected write to {self}: {data}")
+
+        monkeypatch.setattr(Path, "write_text", fail_write_text)
+
+        write_json(output, {"name": "oxidian"})
+
     def test_generates_manifest_and_local_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         plugins_dir = tmp_path / "plugins"
         plugin_dir = plugins_dir / "oxgh"

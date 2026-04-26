@@ -188,8 +188,11 @@ def process_skill(
 
 def write_json(path: Path, data: dict) -> None:
     """Write formatted JSON."""
+    content = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    if path.exists() and path.read_text() == content:
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    path.write_text(content)
 
 
 def read_claude_plugin_manifest(plugin_name: str) -> dict:

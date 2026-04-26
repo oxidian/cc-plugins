@@ -43,6 +43,8 @@ link-codex:
 
 bump:
 	uv run python scripts/bump.py $(filter-out $@,$(MAKECMDGOALS))
+	# Version bumps update plugin manifests that are copied into Codex plugin packages.
+	uv run python scripts/generate_codex.py
 
 bump-check:
 	uv run python scripts/bump.py --check

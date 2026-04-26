@@ -388,6 +388,23 @@ class TestPluginPackage:
 class TestEndToEnd:
     """Test processing actual SKILL.md files from the repo."""
 
+    @staticmethod
+    def _ox_fast_hook_command() -> str:
+        hooks_path = PLUGINS_DIR.parent / "codex" / "plugins" / "ox" / "hooks.json"
+        hooks = json.loads(hooks_path.read_text())
+        return hooks["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+
+    @staticmethod
+    def _write_runner(path: Path, label: str) -> None:
+        path.parent.mkdir(parents=True)
+        path.write_text(
+            "import os\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            f"Path(os.environ['OX_HOOK_MARKER']).write_text('{label} ' + ' '.join(sys.argv[1:]))\n"
+            f"print('{label} runner')\n"
+        )
+
     def test_ox_codex_hooks_use_installed_runner_path(self) -> None:
         hooks_path = PLUGINS_DIR.parent / "codex" / "plugins" / "ox" / "hooks.json"
         hooks_text = hooks_path.read_text()
@@ -395,13 +412,22 @@ class TestEndToEnd:
 
         fast_command = hooks["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
         slow_command = hooks["hooks"]["Stop"][0]["hooks"][0]["command"]
-        bootstrap_runner_path = "$root/.codex/cc-plugins/codex/plugins/ox/scripts/run_if_changed.py"
+        bootstrap_default = 'bootstrap_dir="${CODEX_PLUGINS_BOOTSTRAP_DIR:-.codex/cc-plugins}"'
+        bootstrap_relative_resolution = (
+            'case "$bootstrap_dir" in /*) bootstrap_root="$bootstrap_dir" ;; '
+            '*) bootstrap_root="$root/$bootstrap_dir" ;; esac'
+        )
+        bootstrap_runner_path = "$bootstrap_root/codex/plugins/ox/scripts/run_if_changed.py"
         repo_runner_path = "$root/codex/plugins/ox/scripts/run_if_changed.py"
 
         assert "./scripts/run_if_changed.py" not in hooks_text
         assert "~/.codex/plugins/cache" not in hooks_text
         assert fast_command.startswith("sh -c ")
         assert slow_command.startswith("sh -c ")
+        assert bootstrap_default in fast_command
+        assert bootstrap_default in slow_command
+        assert bootstrap_relative_resolution in fast_command
+        assert bootstrap_relative_resolution in slow_command
         assert bootstrap_runner_path in fast_command
         assert repo_runner_path in fast_command
         assert bootstrap_runner_path in slow_command
@@ -411,24 +437,53 @@ class TestEndToEnd:
         assert "--runtime codex --action fast" in fast_command
         assert "--runtime codex --action slow" in slow_command
 
+    @pytest.mark.parametrize("bootstrap_kind", ["relative", "absolute"])
+    def test_ox_codex_hook_uses_custom_bootstrap_runner(self, tmp_path: Path, bootstrap_kind: str) -> None:
+        fast_command = self._ox_fast_hook_command()
+
+        repo = tmp_path / "repo"
+        workdir = repo / "nested" / "dir"
+        marker = tmp_path / "marker.txt"
+        workdir.mkdir(parents=True)
+        subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
+
+        if bootstrap_kind == "relative":
+            bootstrap_env = "custom-bootstrap"
+            bootstrap_root = repo / bootstrap_env
+        else:
+            bootstrap_root = tmp_path / "custom-bootstrap"
+            bootstrap_env = str(bootstrap_root)
+
+        runner = bootstrap_root / "codex" / "plugins" / "ox" / "scripts" / "run_if_changed.py"
+        self._write_runner(runner, bootstrap_kind)
+
+        result = subprocess.run(
+            fast_command,
+            cwd=workdir,
+            env={
+                **os.environ,
+                "CODEX_PLUGINS_BOOTSTRAP_DIR": bootstrap_env,
+                "OX_HOOK_MARKER": str(marker),
+            },
+            shell=True,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == f"{bootstrap_kind} runner\n"
+        assert marker.read_text() == f"{bootstrap_kind} --runtime codex --action fast"
+
     def test_ox_codex_hook_falls_back_to_repo_local_runner(self, tmp_path: Path) -> None:
-        hooks_path = PLUGINS_DIR.parent / "codex" / "plugins" / "ox" / "hooks.json"
-        hooks = json.loads(hooks_path.read_text())
-        fast_command = hooks["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+        fast_command = self._ox_fast_hook_command()
 
         repo = tmp_path / "repo"
         runner = repo / "codex" / "plugins" / "ox" / "scripts" / "run_if_changed.py"
         workdir = repo / "nested" / "dir"
         marker = tmp_path / "marker.txt"
-        runner.parent.mkdir(parents=True)
         workdir.mkdir(parents=True)
-        runner.write_text(
-            "import os\n"
-            "import sys\n"
-            "from pathlib import Path\n"
-            "Path(os.environ['OX_HOOK_MARKER']).write_text(' '.join(sys.argv[1:]))\n"
-            "print('repo-local runner')\n"
-        )
+        self._write_runner(runner, "repo-local")
         subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
 
         result = subprocess.run(
@@ -443,7 +498,7 @@ class TestEndToEnd:
 
         assert result.returncode == 0, result.stderr
         assert result.stdout == "repo-local runner\n"
-        assert marker.read_text() == "--runtime codex --action fast"
+        assert marker.read_text() == "repo-local --runtime codex --action fast"
 
     def test_commit_skill(self, tmp_path: Path) -> None:
         skill_dir = PLUGINS_DIR / "ox" / "skills" / "commit"

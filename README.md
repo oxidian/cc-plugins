@@ -84,7 +84,7 @@ The bootstrap keeps its temporary checkout under:
 
 Add `<your-repo>/.codex/` to that repo's `.gitignore`. If you mirror `cc-plugins` to GitLab or want reproducible installs, update each marketplace `source.url` / `source.ref` before committing the template. At runtime, the bootstrap can be overridden with `CODEX_PLUGINS_REPO_URL`, `CODEX_PLUGINS_REPO_REF`, `CODEX_PLUGINS_BOOTSTRAP_DIR`, and `CODEX_PLUGINS`.
 
-With the GitHub template, skills are available in that repo as `$open-pr`, `$issue`, `$triage`, `$wait-for-review`, `$merge-or-fix`, and `$shipit`. With the GitLab template, the equivalent MR-oriented skills are available from `oxgl`.
+With the GitHub template, skills are available in that repo as `$oxgh:open-pr`, `$oxgh:issue`, `$oxgh:triage`, `$oxgh:wait-for-review`, `$oxgh:merge-or-fix`, and `$oxgh:shipit`. With the GitLab template, the equivalent MR-oriented skills are available as `$oxgl:open-mr`, `$oxgl:issue`, `$oxgl:wait-for-review`, `$oxgl:merge-or-fix`, and `$oxgl:shipit`.
 
 For reference, the marketplace file lives at:
 

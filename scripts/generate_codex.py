@@ -14,7 +14,9 @@ PLUGINS_DIR = REPO_ROOT / "plugins"
 OUTPUT_DIR = REPO_ROOT / "codex" / "skills"
 CODEX_PLUGINS_DIR = REPO_ROOT / "codex" / "plugins"
 CODEX_MARKETPLACE = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
+CLAUDE_MARKETPLACE = REPO_ROOT / ".claude-plugin" / "marketplace.json"
 DEFAULT_PLUGINS = "ox,oxgh"
+DEFAULT_OWNER = "oxidian"
 
 TOOL_CALL_PATTERN = re.compile(
     r"You have the capability to call multiple tools in a single response\."
@@ -150,6 +152,39 @@ def resolve_script_paths(content: str, scripts_dir: Path) -> str:
     return re.sub(r"scripts/(\S+\.py)", lambda m: str(scripts_dir / m.group(1)), content)
 
 
+def read_marketplace_owner() -> str:
+    """Return marketplace owner name (lowercased) from .claude-plugin/marketplace.json."""
+    if not CLAUDE_MARKETPLACE.exists():
+        return DEFAULT_OWNER
+    data = json.loads(CLAUDE_MARKETPLACE.read_text())
+    owner = data.get("owner")
+    if isinstance(owner, dict):
+        name = owner.get("name")
+        if isinstance(name, str) and name:
+            return name.lower()
+    return DEFAULT_OWNER
+
+
+def render_hook_template(text: str, plugin_name: str, version: str, owner: str) -> str:
+    """Substitute __PLUGIN_NAME__, __PLUGIN_VERSION__, __PLUGIN_OWNER__ tokens."""
+    return (
+        text.replace("__PLUGIN_NAME__", plugin_name)
+        .replace("__PLUGIN_VERSION__", version)
+        .replace("__PLUGIN_OWNER__", owner)
+    )
+
+
+def codex_cache_skill_script_path(owner: str, plugin_name: str, version: str, skill_name: str) -> str:
+    """Return $HOME-prefixed cache install path for a skill's scripts/ dir."""
+    return f"$HOME/.codex/plugins/cache/{owner}/{plugin_name}/{version}/skills/{skill_name}/scripts"
+
+
+def stamp_skill_script_paths(content: str, owner: str, plugin_name: str, version: str, skill_name: str) -> str:
+    """Rewrite scripts/foo.py references to the versioned Codex cache path."""
+    prefix = codex_cache_skill_script_path(owner, plugin_name, version, skill_name)
+    return re.sub(r"scripts/(\S+\.py)", lambda m: f"{prefix}/{m.group(1)}", content)
+
+
 def process_skill(
     plugin_name: str,
     skill_dir: Path,
@@ -157,8 +192,14 @@ def process_skill(
     *,
     namespaced: bool = True,
     include_plugin_dir: bool = True,
+    stamp_version: str | None = None,
+    stamp_owner: str | None = None,
 ) -> None:
-    """Transform one skill and write to output_dir."""
+    """Transform one skill and write to output_dir.
+
+    If stamp_version and stamp_owner are provided, rewrites scripts/foo.py
+    references in the body to the versioned Codex cache install path.
+    """
     skill_md = skill_dir / "SKILL.md"
     if not skill_md.exists():
         return
@@ -170,13 +211,18 @@ def process_skill(
     new_fm = transform_frontmatter(frontmatter, plugin_name, skill_name, namespaced=namespaced)
     new_body = transform_body(body)
 
+    if stamp_version and stamp_owner:
+        body_for_output = stamp_skill_script_paths(new_body, stamp_owner, plugin_name, stamp_version, skill_name)
+    else:
+        body_for_output = new_body
+
     out_skill_dir = output_dir / plugin_name / skill_name if include_plugin_dir else output_dir / skill_name
     out_skill_dir.mkdir(parents=True, exist_ok=True)
 
-    output = serialize_frontmatter(new_fm) + new_body
+    output = serialize_frontmatter(new_fm) + body_for_output
     (out_skill_dir / "SKILL.md").write_text(output)
 
-    # Copy script dependencies
+    # Copy script dependencies (detected from the relative-form body)
     plugin_dir = skill_dir.parent.parent
     script_deps = detect_script_deps(new_body, plugin_dir)
     if script_deps:
@@ -256,6 +302,10 @@ def generate_plugin_package(plugin_name: str, output_dir: Path = CODEX_PLUGINS_D
     if plugin_out.exists():
         shutil.rmtree(plugin_out)
 
+    manifest = read_claude_plugin_manifest(plugin_name)
+    version = str(manifest.get("version", "0.1.0"))
+    owner = read_marketplace_owner()
+
     skills_dir = PLUGINS_DIR / plugin_name / "skills"
     if skills_dir.exists():
         for skill_dir in sorted(skills_dir.iterdir()):
@@ -266,12 +316,15 @@ def generate_plugin_package(plugin_name: str, output_dir: Path = CODEX_PLUGINS_D
                     plugin_out / "skills",
                     namespaced=False,
                     include_plugin_dir=False,
+                    stamp_version=version,
+                    stamp_owner=owner,
                 )
 
     hooks_path = PLUGINS_DIR / plugin_name / "codex" / "hooks.json"
     if hooks_path.exists():
         plugin_out.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(hooks_path, plugin_out / "hooks.json")
+        rendered = render_hook_template(hooks_path.read_text(), plugin_name, version, owner)
+        (plugin_out / "hooks.json").write_text(rendered)
 
         scripts_dir = PLUGINS_DIR / plugin_name / "scripts"
         if scripts_dir.exists():

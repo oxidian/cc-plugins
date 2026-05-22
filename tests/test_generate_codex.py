@@ -30,6 +30,8 @@ transform_body = generate_codex.transform_body
 detect_script_deps = generate_codex.detect_script_deps
 process_skill = generate_codex.process_skill
 resolve_script_paths = generate_codex.resolve_script_paths
+render_hook_template = generate_codex.render_hook_template
+stamp_skill_script_paths = generate_codex.stamp_skill_script_paths
 generate_plugin_package = generate_codex.generate_plugin_package
 write_json = generate_codex.write_json
 write_marketplace = generate_codex.write_marketplace
@@ -383,6 +385,146 @@ class TestPluginPackage:
         assert '"path": "./codex/plugins/oxgh"' in result
         assert '"installation": "AVAILABLE"' in result
         assert '"authentication": "ON_INSTALL"' in result
+
+
+class TestRenderHookTemplate:
+    def test_substitutes_all_tokens(self) -> None:
+        text = "cache/__PLUGIN_OWNER__/__PLUGIN_NAME__/__PLUGIN_VERSION__/foo"
+        result = render_hook_template(text, "ox", "1.2.3", "oxidian")
+        assert result == "cache/oxidian/ox/1.2.3/foo"
+
+    def test_substitutes_multiple_occurrences(self) -> None:
+        text = "__PLUGIN_NAME__ and __PLUGIN_NAME__ again"
+        assert render_hook_template(text, "ox", "1.0.0", "oxidian") == "ox and ox again"
+
+    def test_no_tokens_unchanged(self) -> None:
+        assert render_hook_template("plain text", "ox", "1.0.0", "oxidian") == "plain text"
+
+
+class TestStampSkillScriptPaths:
+    def test_rewrites_relative_script_ref(self) -> None:
+        content = "Run `python3 scripts/wait.py 42`"
+        result = stamp_skill_script_paths(content, "oxidian", "oxgh", "0.1.4", "wait-for-review")
+        assert (
+            result
+            == "Run `python3 $HOME/.codex/plugins/cache/oxidian/oxgh/0.1.4/skills/wait-for-review/scripts/wait.py 42`"
+        )
+
+    def test_rewrites_multiple_scripts(self) -> None:
+        content = "scripts/a.py and scripts/b.py"
+        result = stamp_skill_script_paths(content, "oxidian", "ox", "0.0.1", "commit")
+        assert "$HOME/.codex/plugins/cache/oxidian/ox/0.0.1/skills/commit/scripts/a.py" in result
+        assert "$HOME/.codex/plugins/cache/oxidian/ox/0.0.1/skills/commit/scripts/b.py" in result
+
+    def test_no_change_without_scripts(self) -> None:
+        assert stamp_skill_script_paths("plain text", "oxidian", "ox", "0.0.1", "commit") == "plain text"
+
+
+class TestVersionStampedPluginPackage:
+    def _write_marketplace(self, repo_root: Path, owner: str = "Oxidian") -> None:
+        marketplace = repo_root / ".claude-plugin" / "marketplace.json"
+        marketplace.parent.mkdir(parents=True, exist_ok=True)
+        marketplace.write_text(json.dumps({"name": "oxidian", "owner": {"name": owner}}))
+
+    def _setup_plugin(self, plugins_dir: Path, plugin_name: str, version: str) -> Path:
+        plugin_dir = plugins_dir / plugin_name
+        (plugin_dir / ".claude-plugin").mkdir(parents=True)
+        (plugin_dir / ".claude-plugin" / "plugin.json").write_text(
+            json.dumps(
+                {
+                    "name": plugin_name,
+                    "description": f"{plugin_name} plugin",
+                    "version": version,
+                    "author": {"name": "Oxidian"},
+                }
+            )
+            + "\n"
+        )
+        return plugin_dir
+
+    def test_hooks_json_substitutes_version_owner_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        self._write_marketplace(repo_root)
+
+        plugins_dir = repo_root / "plugins"
+        plugin_dir = self._setup_plugin(plugins_dir, "ox", "9.9.9")
+        (plugin_dir / "codex").mkdir()
+        (plugin_dir / "codex" / "hooks.json").write_text(
+            "cache_runner=$HOME/.codex/plugins/cache/__PLUGIN_OWNER__/__PLUGIN_NAME__/__PLUGIN_VERSION__/scripts/run.py\n"
+        )
+
+        monkeypatch.setattr(generate_codex, "PLUGINS_DIR", plugins_dir)
+        monkeypatch.setattr(generate_codex, "CLAUDE_MARKETPLACE", repo_root / ".claude-plugin" / "marketplace.json")
+
+        output_dir = tmp_path / "codex" / "plugins"
+        generate_plugin_package("ox", output_dir)
+
+        rendered = (output_dir / "ox" / "hooks.json").read_text()
+        assert "$HOME/.codex/plugins/cache/oxidian/ox/9.9.9/scripts/run.py" in rendered
+        assert "__PLUGIN_NAME__" not in rendered
+        assert "__PLUGIN_VERSION__" not in rendered
+        assert "__PLUGIN_OWNER__" not in rendered
+
+    def test_skill_scripts_stamped_with_cache_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        self._write_marketplace(repo_root)
+
+        plugins_dir = repo_root / "plugins"
+        plugin_dir = self._setup_plugin(plugins_dir, "oxgh", "7.0.1")
+        skill_dir = plugin_dir / "skills" / "wait-for-review"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\nallowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait.py:*)\n"
+            "description: Wait\n---\n\nRun `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait.py 42`.\n"
+        )
+        (plugin_dir / "scripts").mkdir()
+        (plugin_dir / "scripts" / "wait.py").write_text("# wait\n")
+
+        monkeypatch.setattr(generate_codex, "PLUGINS_DIR", plugins_dir)
+        monkeypatch.setattr(generate_codex, "CLAUDE_MARKETPLACE", repo_root / ".claude-plugin" / "marketplace.json")
+
+        output_dir = tmp_path / "codex" / "plugins"
+        generate_plugin_package("oxgh", output_dir)
+
+        skill = (output_dir / "oxgh" / "skills" / "wait-for-review" / "SKILL.md").read_text()
+        assert "$HOME/.codex/plugins/cache/oxidian/oxgh/7.0.1/skills/wait-for-review/scripts/wait.py" in skill
+        # Bare relative form should be absent now
+        assert "scripts/wait.py" in skill  # appears inside the absolute path
+        assert skill.count("scripts/wait.py") == skill.count(
+            "$HOME/.codex/plugins/cache/oxidian/oxgh/7.0.1/skills/wait-for-review/scripts/wait.py"
+        )
+        # Scripts file is still copied so the cache install layout is correct
+        assert (output_dir / "oxgh" / "skills" / "wait-for-review" / "scripts" / "wait.py").exists()
+
+    def test_namespaced_skills_remain_relative(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The standalone codex/skills/<plugin>/<skill>/SKILL.md output (used by
+        # --install/--link) should keep bare relative scripts/foo.py refs so
+        # install()/link() can still resolve them.
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        self._write_marketplace(repo_root)
+
+        plugins_dir = repo_root / "plugins"
+        plugin_dir = self._setup_plugin(plugins_dir, "oxgh", "7.0.1")
+        skill_dir = plugin_dir / "skills" / "wait-for-review"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\ndescription: Wait\n---\n\nRun `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait.py 42`.\n"
+        )
+        (plugin_dir / "scripts").mkdir()
+        (plugin_dir / "scripts" / "wait.py").write_text("# wait\n")
+
+        monkeypatch.setattr(generate_codex, "PLUGINS_DIR", plugins_dir)
+        monkeypatch.setattr(generate_codex, "CLAUDE_MARKETPLACE", repo_root / ".claude-plugin" / "marketplace.json")
+
+        out_skills = tmp_path / "codex" / "skills"
+        process_skill("oxgh", skill_dir, out_skills)
+
+        skill = (out_skills / "oxgh" / "wait-for-review" / "SKILL.md").read_text()
+        assert "python3 scripts/wait.py 42" in skill
+        assert "$HOME/.codex/plugins/cache" not in skill
 
 
 class TestEndToEnd:

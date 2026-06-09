@@ -17,7 +17,6 @@ Base plugin.
 Quality guards that block bad patterns before they reach the codebase:
 
 - **`ban_redundant_cd.py`** — blocks redundant `cd` into directories the shell is already in
-- **`ban_custom_debug.py`** — blocks `python -c` debug scripts and custom debug files
 - **`ban_lint_suppressions.py`** — blocks `# noqa`, `# type: ignore`, `# pyright: ignore`
 
 ### PostToolUse

@@ -13,16 +13,6 @@
         ]
       },
       {
-        "matcher": "Bash|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ban_custom_debug.py",
-            "timeout": 10
-          }
-        ]
-      },
-      {
         "matcher": "Edit|Write",
         "hooks": [
           {

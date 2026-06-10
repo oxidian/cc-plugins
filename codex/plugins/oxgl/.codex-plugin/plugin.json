@@ -1,6 +1,6 @@
 {
   "name": "oxgl",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "GitLab workflow — MR, issue, and merge skills using glab CLI",
   "author": {
     "name": "Oxidian"

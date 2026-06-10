@@ -1,7 +1,7 @@
 {
   "name": "oxgh",
   "description": "GitHub workflow — PR, issue, triage, and merge skills using gh CLI",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": {
     "name": "Oxidian"
   }

@@ -1,13 +1,16 @@
 ---
-allowed-tools: Bash(git checkout --branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git status:*), Bash(git push:*), Bash(git commit:*), Bash(git log:*), Bash(gh pr create:*)
+allowed-tools: Bash(git checkout --branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git status:*), Bash(git diff:*), Bash(git push:*), Bash(git commit:*), Bash(git log:*), Bash(gh pr create:*)
 description: Commit, push, and open a pull request
+model: haiku
 ---
 
 ## Context
 
-- Current git status: !`git status`
-- Current git diff (staged and unstaged changes): !`git diff HEAD`
+- Current git status: !`git status --porcelain`
 - Current branch: !`git branch --show-current`
+- Recent commits: !`git log --oneline -10`
+
+You usually already know what changed in this session. If you are unsure what the changes are, run `git diff HEAD` (or a targeted `git diff HEAD -- <file>`) before committing.
 
 ## Commit and PR style
 
@@ -26,4 +29,4 @@ Based on the above changes:
 2. Create a single commit with an appropriate message
 3. Push the branch to origin
 4. Create a pull request using `gh pr create`
-5. You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message using separate tool calls for each command. Do NOT chain commands with && or ;. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.
+5. You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message using separate tool calls for each command. Do NOT chain commands with && or ;. Apart from an optional `git diff` to understand the changes first, do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.

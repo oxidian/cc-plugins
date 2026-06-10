@@ -1,14 +1,17 @@
 ---
-allowed-tools: Bash(git checkout --branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git status:*), Bash(git push:*), Bash(git commit:*), Bash(git log:*), Bash(glab mr create:*), Bash(glab mr merge:*)
+allowed-tools: Bash(git checkout --branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git status:*), Bash(git diff:*), Bash(git push:*), Bash(git commit:*), Bash(git log:*), Bash(glab mr create:*), Bash(glab mr merge:*)
 description: Commit, push, and open a merge request with auto-merge
 disable-model-invocation: true
+model: haiku
 ---
 
 ## Context
 
-- Current git status: !`git status`
-- Current git diff (staged and unstaged changes): !`git diff HEAD`
+- Current git status: !`git status --porcelain`
 - Current branch: !`git branch --show-current`
+- Recent commits: !`git log --oneline -10`
+
+You usually already know what changed in this session. If you are unsure what the changes are, run `git diff HEAD` (or a targeted `git diff HEAD -- <file>`) before committing.
 
 ## Commit and MR style
 
@@ -28,4 +31,4 @@ Based on the above changes:
 3. Push the branch to origin
 4. Create a merge request using `glab mr create`. Do not use `--fill` option.
 5. Enable auto-merge by running exactly `glab mr merge --when-pipeline-succeeds` (no other flags)
-6. You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message using separate tool calls for each command. Do NOT chain commands with && or ;. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.
+6. You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message using separate tool calls for each command. Do NOT chain commands with && or ;. Apart from an optional `git diff` to understand the changes first, do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.

@@ -652,7 +652,7 @@ class TestEndToEnd:
         assert "allowed-tools" not in result
         assert "!`" not in result
         assert "First, run these commands" in result
-        assert "`git status`" in result
+        assert "`git status --porcelain`" in result
         assert "Execute each step as a separate command." in result
 
     def test_wait_for_review_skill(self, tmp_path: Path) -> None:

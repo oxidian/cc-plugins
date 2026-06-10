@@ -7,9 +7,11 @@ description: Commit, push, and open a merge request
 
 First, run these commands and review their output:
 
-- Current git status: `git status`
-- Current git diff (staged and unstaged changes): `git diff HEAD`
+- Current git status: `git status --porcelain`
 - Current branch: `git branch --show-current`
+- Recent commits: `git log --oneline -10`
+
+You usually already know what changed in this session. If you are unsure what the changes are, run `git diff HEAD` (or a targeted `git diff HEAD -- <file>`) before committing.
 
 ## Commit and MR style
 

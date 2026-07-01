@@ -81,13 +81,21 @@ def _init_branch_changed_repo(tmp_path: Path, command: str, *, base_ref: str = "
     return subdir
 
 
-def _run_codex_hook(cwd: Path, action: str, *, permission_mode: str = "default") -> subprocess.CompletedProcess[str]:
+def _run_codex_hook(
+    cwd: Path,
+    action: str,
+    *,
+    permission_mode: str = "default",
+    extra_payload: dict | None = None,
+) -> subprocess.CompletedProcess[str]:
     payload = {
         "session_id": f"test-{action}",
         "cwd": str(cwd),
         "hook_event_name": "Stop" if action == "slow" else "PostToolUse",
         "permission_mode": permission_mode,
     }
+    if extra_payload:
+        payload.update(extra_payload)
     return subprocess.run(
         [sys.executable, str(_script_path), "--runtime", "codex", "--action", action],
         input=json.dumps(payload),
@@ -313,6 +321,98 @@ class TestCodexRuntime:
         assert result.returncode == 0
         assert result.stdout == ""
         assert result.stderr == ""
+
+    def test_plan_mode_slow_skips_direct_collaboration_mode_kind(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude" / "ox-hooks.json").write_text("{not json\n")
+        (tmp_path / "changed.txt").write_text("changed\n")
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+
+        result = _run_codex_hook(
+            subdir,
+            "slow",
+            extra_payload={
+                "permission_mode": "default",
+                "collaboration_mode_kind": "plan",
+            },
+        )
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_plan_mode_slow_skips_direct_collaboration_mode_object(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude" / "ox-hooks.json").write_text("{not json\n")
+        (tmp_path / "changed.txt").write_text("changed\n")
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+
+        result = _run_codex_hook(
+            subdir,
+            "slow",
+            extra_payload={
+                "permission_mode": "default",
+                "collaboration_mode": {"mode": "plan"},
+            },
+        )
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_plan_mode_slow_skips_when_matching_transcript_turn_is_plan(self, tmp_path: Path) -> None:
+        check_script = tmp_path / "check.py"
+        check_script.write_text("import sys\nprint('bad check output')\nsys.exit(1)\n")
+        subdir = _init_changed_repo(tmp_path, _command_for_script(check_script))
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_text(
+            "\n".join(
+                [
+                    json.dumps({"turn_id": "other", "collaboration_mode_kind": "default"}),
+                    json.dumps({"turn_id": "turn-1", "collaboration_mode_kind": "plan"}),
+                ]
+            )
+            + "\n"
+        )
+
+        result = _run_codex_hook(
+            subdir,
+            "slow",
+            extra_payload={
+                "permission_mode": "default",
+                "transcript_path": str(transcript),
+                "turn_id": "turn-1",
+            },
+        )
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_non_plan_transcript_turn_runs_slow_checks(self, tmp_path: Path) -> None:
+        check_script = tmp_path / "check.py"
+        check_script.write_text("import sys\nprint('bad check output')\nsys.exit(1)\n")
+        subdir = _init_changed_repo(tmp_path, _command_for_script(check_script))
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_text(json.dumps({"turn_id": "turn-1", "collaboration_mode": {"mode": "default"}}) + "\n")
+
+        result = _run_codex_hook(
+            subdir,
+            "slow",
+            extra_payload={
+                "permission_mode": "default",
+                "transcript_path": str(transcript),
+                "turn_id": "turn-1",
+            },
+        )
+
+        assert result.returncode == 2
+        assert "Final checks failed. Fix these issues before finishing." in result.stderr
+        assert "bad check output" in result.stderr
 
     def test_slow_runs_for_committed_branch_changes(self, tmp_path: Path) -> None:
         marker = tmp_path / "marker.txt"

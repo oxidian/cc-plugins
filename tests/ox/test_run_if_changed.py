@@ -81,12 +81,12 @@ def _init_branch_changed_repo(tmp_path: Path, command: str, *, base_ref: str = "
     return subdir
 
 
-def _run_codex_hook(cwd: Path, action: str) -> subprocess.CompletedProcess[str]:
+def _run_codex_hook(cwd: Path, action: str, *, permission_mode: str = "default") -> subprocess.CompletedProcess[str]:
     payload = {
         "session_id": f"test-{action}",
         "cwd": str(cwd),
         "hook_event_name": "Stop" if action == "slow" else "PostToolUse",
-        "permission_mode": "default",
+        "permission_mode": permission_mode,
     }
     return subprocess.run(
         [sys.executable, str(_script_path), "--runtime", "codex", "--action", action],
@@ -288,6 +288,31 @@ class TestCodexRuntime:
         assert result.stdout == ""
         assert "Final checks failed. Fix these issues before finishing." in result.stderr
         assert "bad check output" in result.stderr
+
+    def test_plan_mode_slow_skips_failing_checks(self, tmp_path: Path) -> None:
+        check_script = tmp_path / "check.py"
+        check_script.write_text("import sys\nprint('bad check output')\nsys.exit(1)\n")
+        subdir = _init_changed_repo(tmp_path, _command_for_script(check_script))
+
+        result = _run_codex_hook(subdir, "slow", permission_mode="plan")
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_plan_mode_slow_skips_before_config_parsing(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude" / "ox-hooks.json").write_text("{not json\n")
+        (tmp_path / "changed.txt").write_text("changed\n")
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+
+        result = _run_codex_hook(subdir, "slow", permission_mode="plan")
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
 
     def test_slow_runs_for_committed_branch_changes(self, tmp_path: Path) -> None:
         marker = tmp_path / "marker.txt"

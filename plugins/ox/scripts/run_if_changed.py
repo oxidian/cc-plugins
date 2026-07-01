@@ -376,6 +376,10 @@ def main() -> None:
     if not project_dir:
         parser.error("--project-dir is required unless --runtime codex can derive cwd")
 
+    if args.runtime == RUNTIME_CODEX and hook_input and hook_input.get("permission_mode") == "plan":
+        _emit(args.runtime, "Plan mode active, skipping")
+        sys.exit(SUCCESS_CODE)
+
     # Read config
     config_file = os.path.join(project_dir, CONFIG_PATH)
     if not os.path.exists(config_file):
@@ -390,9 +394,6 @@ def main() -> None:
         _emit(args.runtime, f"No checks configured in {CONFIG_PATH}, skipping")
         sys.exit(SUCCESS_CODE)
 
-    if hook_input and hook_input.get("permission_mode") == "plan":
-        _emit(args.runtime, "Plan mode active, skipping")
-        sys.exit(SUCCESS_CODE)
     if hook_input and args.action == "slow" and _is_team_lead_session(session_id):
         _emit(args.runtime, "Agent team lead session, skipping stop checks")
         sys.exit(SUCCESS_CODE)

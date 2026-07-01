@@ -65,6 +65,58 @@ def _codex_project_dir(hook_input: dict | None) -> str:
     return _git_root_or_cwd(os.getcwd())
 
 
+def _has_plan_mode_marker(data: dict) -> bool:
+    """Return True when a hook or transcript record identifies plan mode."""
+    if data.get("permission_mode") == "plan":
+        return True
+    if data.get("collaboration_mode_kind") == "plan":
+        return True
+
+    collaboration_mode = data.get("collaboration_mode")
+    if collaboration_mode == "plan":
+        return True
+    if isinstance(collaboration_mode, dict) and collaboration_mode.get("mode") == "plan":
+        return True
+
+    return False
+
+
+def _transcript_turn_is_plan_mode(transcript_path: object, turn_id: object) -> bool:
+    """Best-effort Codex transcript fallback for plan-mode Stop hooks."""
+    if not isinstance(transcript_path, str) or not transcript_path:
+        return False
+    if not isinstance(turn_id, str) or not turn_id:
+        return False
+
+    try:
+        with open(transcript_path) as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(record, dict):
+                    continue
+                if record.get("turn_id") == turn_id and _has_plan_mode_marker(record):
+                    return True
+    except (OSError, UnicodeDecodeError):
+        return False
+
+    return False
+
+
+def _is_codex_plan_mode(hook_input: dict | None) -> bool:
+    """Detect Codex plan-mode turns without depending on project config."""
+    if not hook_input:
+        return False
+    if _has_plan_mode_marker(hook_input):
+        return True
+
+    return _transcript_turn_is_plan_mode(hook_input.get("transcript_path"), hook_input.get("turn_id"))
+
+
 def _codex_failure_feedback(action: str, failure_outputs: list[str]) -> str:
     """Build the continuation prompt Codex receives when checks fail."""
     check_name = "Final checks" if action == "slow" else "Fast checks"
@@ -376,7 +428,7 @@ def main() -> None:
     if not project_dir:
         parser.error("--project-dir is required unless --runtime codex can derive cwd")
 
-    if args.runtime == RUNTIME_CODEX and hook_input and hook_input.get("permission_mode") == "plan":
+    if args.runtime == RUNTIME_CODEX and _is_codex_plan_mode(hook_input):
         _emit(args.runtime, "Plan mode active, skipping")
         sys.exit(SUCCESS_CODE)
 

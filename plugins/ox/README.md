@@ -25,7 +25,7 @@ Runs on `Write|Edit|MultiEdit` — auto-formats changed files using the project'
 
 ### Stop
 
-Runs before Claude stops — executes slow checks on modified directories.
+Runs before Claude stops — executes slow checks on modified directories, including files already committed on the current branch.
 
 ## Project configuration
 
@@ -33,10 +33,13 @@ The PostToolUse and Stop hooks read `.claude/ox-hooks.json` from the project roo
 
 Each entry in `checks` defines a `fast` command (run on PostToolUse) and a `slow` command (run on Stop). If `directory` is set, the command only triggers when files under that directory have changed and runs inside that subdirectory. If omitted, the command triggers on any file change and runs at the project root.
 
+Stop checks include both working-tree changes and committed branch changes compared with `base_ref`. The default `base_ref` is `origin/main`; set it for projects that branch from another long-lived branch.
+
 **Whole-project** (e.g. a Python project using ruff):
 
 ```json
 {
+  "base_ref": "origin/main",
   "checks": [
     { "fast": "uv run ruff format .", "slow": "uv run ruff check ." }
   ]

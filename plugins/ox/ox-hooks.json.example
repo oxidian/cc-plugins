@@ -1,5 +1,6 @@
 // For a repository with unified tooling:
 {
+  "base_ref": "origin/main",
   "checks": [
     {
       "fast": "uv run ruff format .",
@@ -10,6 +11,7 @@
 
 // For a repository with submodules using different tooling:
 {
+  "base_ref": "origin/main",
   "checks": [
     {
       "directory": "backend",

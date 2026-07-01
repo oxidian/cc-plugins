@@ -30,6 +30,11 @@ def _command_for_script(script: Path) -> str:
     return f"{shlex.quote(sys.executable)} {shlex.quote(str(script))}"
 
 
+def _command_for_script_with_args(script: Path, *args: Path | str) -> str:
+    quoted_args = " ".join(shlex.quote(str(arg)) for arg in args)
+    return f"{_command_for_script(script)} {quoted_args}"
+
+
 def _init_changed_repo(tmp_path: Path, command: str) -> Path:
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
     (tmp_path / ".claude").mkdir()
@@ -37,6 +42,40 @@ def _init_changed_repo(tmp_path: Path, command: str) -> Path:
         json.dumps({"checks": [{"fast": command, "slow": command}], "fast_every": 1}) + "\n"
     )
     (tmp_path / "changed.txt").write_text("changed\n")
+    subdir = tmp_path / "subdir"
+    subdir.mkdir()
+    return subdir
+
+
+def _init_branch_changed_repo(tmp_path: Path, command: str, *, base_ref: str = "origin/main") -> Path:
+    subprocess.run(
+        ["git", "init", "--initial-branch", "main"], cwd=tmp_path, check=True, capture_output=True, text=True
+    )
+    (tmp_path / ".claude").mkdir()
+    config = {"checks": [{"fast": command, "slow": command}], "fast_every": 1}
+    if base_ref != "origin/main":
+        config["base_ref"] = base_ref
+    (tmp_path / ".claude" / "ox-hooks.json").write_text(json.dumps(config) + "\n")
+    (tmp_path / "tracked.txt").write_text("base\n")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "base"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "checkout", "-b", "feature"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    (tmp_path / "tracked.txt").write_text("branch\n")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "branch change"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     subdir = tmp_path / "subdir"
     subdir.mkdir()
     return subdir
@@ -249,3 +288,116 @@ class TestCodexRuntime:
         assert result.stdout == ""
         assert "Final checks failed. Fix these issues before finishing." in result.stderr
         assert "bad check output" in result.stderr
+
+    def test_slow_runs_for_committed_branch_changes(self, tmp_path: Path) -> None:
+        marker = tmp_path / "marker.txt"
+        check_script = tmp_path / "check.py"
+        check_script.write_text("import sys\nfrom pathlib import Path\nPath(sys.argv[1]).write_text('ran')\n")
+        subdir = _init_branch_changed_repo(tmp_path, _command_for_script_with_args(check_script, marker))
+
+        result = _run_codex_hook(subdir, "slow")
+
+        assert result.returncode == 0
+        assert marker.read_text() == "ran"
+
+    def test_fast_skips_for_committed_branch_changes(self, tmp_path: Path) -> None:
+        marker = tmp_path / "marker.txt"
+        check_script = tmp_path / "check.py"
+        check_script.write_text("import sys\nfrom pathlib import Path\nPath(sys.argv[1]).write_text('ran')\n")
+        subdir = _init_branch_changed_repo(tmp_path, _command_for_script_with_args(check_script, marker))
+
+        result = _run_codex_hook(subdir, "fast")
+
+        assert result.returncode == 0
+        assert not marker.exists()
+
+    def test_slow_uses_custom_base_ref(self, tmp_path: Path) -> None:
+        marker = tmp_path / "marker.txt"
+        check_script = tmp_path / "check.py"
+        check_script.write_text("import sys\nfrom pathlib import Path\nPath(sys.argv[1]).write_text('ran')\n")
+        subdir = _init_branch_changed_repo(
+            tmp_path,
+            _command_for_script_with_args(check_script, marker),
+            base_ref="origin/release",
+        )
+        subprocess.run(["git", "update-ref", "refs/remotes/origin/release", "origin/main"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "update-ref", "-d", "refs/remotes/origin/main"], cwd=tmp_path, check=True)
+
+        result = _run_codex_hook(subdir, "slow")
+
+        assert result.returncode == 0
+        assert marker.read_text() == "ran"
+
+    def test_slow_scopes_committed_branch_changes_to_matching_directory(self, tmp_path: Path) -> None:
+        subprocess.run(
+            ["git", "init", "--initial-branch", "main"], cwd=tmp_path, check=True, capture_output=True, text=True
+        )
+        backend = tmp_path / "backend"
+        frontend = tmp_path / "frontend"
+        backend.mkdir()
+        frontend.mkdir()
+        (backend / "file.txt").write_text("base\n")
+        (frontend / "file.txt").write_text("base\n")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "base"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "checkout", "-b", "feature"], cwd=tmp_path, check=True, capture_output=True, text=True)
+        (backend / "file.txt").write_text("branch\n")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=Test User",
+                "-c",
+                "user.email=test@example.com",
+                "commit",
+                "-m",
+                "backend change",
+            ],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        marker = tmp_path / "marker.txt"
+        check_script = tmp_path / "check.py"
+        check_script.write_text(
+            "import sys\nfrom pathlib import Path\nPath(sys.argv[1]).write_text(Path.cwd().name)\n"
+        )
+        (tmp_path / ".claude").mkdir()
+        command = _command_for_script_with_args(check_script, marker)
+        (tmp_path / ".claude" / "ox-hooks.json").write_text(
+            json.dumps(
+                {
+                    "checks": [
+                        {"directory": "backend", "slow": command},
+                        {"directory": "frontend", "slow": command},
+                    ]
+                }
+            )
+            + "\n"
+        )
+
+        result = _run_codex_hook(frontend, "slow")
+
+        assert result.returncode == 0
+        assert marker.read_text() == "backend"
+
+    def test_slow_ignores_missing_base_ref(self, tmp_path: Path) -> None:
+        marker = tmp_path / "marker.txt"
+        check_script = tmp_path / "check.py"
+        check_script.write_text("import sys\nfrom pathlib import Path\nPath(sys.argv[1]).write_text('ran')\n")
+        subdir = _init_branch_changed_repo(tmp_path, _command_for_script_with_args(check_script, marker))
+        subprocess.run(["git", "update-ref", "-d", "refs/remotes/origin/main"], cwd=tmp_path, check=True)
+
+        result = _run_codex_hook(subdir, "slow")
+
+        assert result.returncode == 0
+        assert not marker.exists()

@@ -28,6 +28,7 @@ MAX_CODEX_FEEDBACK_CHARS = 20000
 
 CONFIG_PATH = ".claude/ox-hooks.json"
 DEFAULT_FAST_EVERY = 5
+DEFAULT_BASE_REF = "origin/main"
 
 
 def _emit(runtime: str, message: str, *, file: TextIO = sys.stdout) -> None:
@@ -244,8 +245,7 @@ def get_changed_files(project_dir: str) -> set[str]:
     """Return the set of changed file paths from git status --porcelain."""
     try:
         result = subprocess.run(
-            "git status --porcelain",
-            shell=True,
+            ["git", "status", "--porcelain"],
             capture_output=True,
             text=True,
             cwd=project_dir,
@@ -263,6 +263,32 @@ def get_changed_files(project_dir: str) -> set[str]:
         if line:
             files.add(line[3:])  # Skip XY status codes and space
     return files
+
+
+def get_branch_changed_files(project_dir: str, base_ref: str) -> set[str]:
+    """Return committed branch changes relative to base_ref, or empty if unavailable."""
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "--no-renames", f"{base_ref}...HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=project_dir,
+        )
+    except Exception:
+        return set()
+
+    if result.returncode != 0:
+        return set()
+
+    return {line for line in result.stdout.splitlines() if line}
+
+
+def get_base_ref(config: dict) -> str:
+    """Return the configured branch comparison base ref."""
+    base_ref = config.get("base_ref", DEFAULT_BASE_REF)
+    if isinstance(base_ref, str) and base_ref:
+        return base_ref
+    return DEFAULT_BASE_REF
 
 
 def directory_has_changes(changed_files: set[str], directory: str) -> bool:
@@ -387,6 +413,8 @@ def main() -> None:
             sys.exit(SUCCESS_CODE)
 
     changed_files = get_changed_files(project_dir)
+    if args.action == "slow":
+        changed_files.update(get_branch_changed_files(project_dir, get_base_ref(config)))
     if not changed_files:
         _emit(args.runtime, "No files changed, skipping")
         sys.exit(SUCCESS_CODE)

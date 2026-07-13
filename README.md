@@ -15,8 +15,8 @@ claude
 | Plugin | Purpose |
 |--------|---------|
 | [**ox**](plugins/ox/) | Base plugin — commit skill, code quality hooks, auto-format and checks |
-| [**oxgh**](plugins/oxgh/) | GitHub workflow — PR, issue, triage, review, and merge skills |
-| [**oxgl**](plugins/oxgl/) | GitLab workflow — MR, issue, review, and merge skills |
+| [**oxgh**](plugins/oxgh/) | GitHub workflow — PR, issue, triage, and merge skills |
+| [**oxgl**](plugins/oxgl/) | GitLab workflow — MR, issue, and merge skills |
 
 ## Installation
 
@@ -84,7 +84,7 @@ The bootstrap keeps its temporary checkout under:
 
 Add `<your-repo>/.codex/` to that repo's `.gitignore`. If you mirror `cc-plugins` to GitLab or want reproducible installs, update each marketplace `source.url` / `source.ref` before committing the template. At runtime, the bootstrap can be overridden with `CODEX_PLUGINS_REPO_URL`, `CODEX_PLUGINS_REPO_REF`, `CODEX_PLUGINS_BOOTSTRAP_DIR`, and `CODEX_PLUGINS`.
 
-With the GitHub template, skills are available in that repo as `$oxgh:open-pr`, `$oxgh:issue`, `$oxgh:triage`, `$oxgh:wait-for-review`, `$oxgh:merge-or-fix`, and `$oxgh:shipit`. With the GitLab template, the equivalent MR-oriented skills are available as `$oxgl:open-mr`, `$oxgl:issue`, `$oxgl:wait-for-review`, `$oxgl:merge-or-fix`, and `$oxgl:shipit`.
+With the GitHub template, skills are available in that repo as `$oxgh:open-pr`, `$oxgh:issue`, `$oxgh:triage`, and `$oxgh:shipit`. With the GitLab template, the equivalent MR-oriented skills are available as `$oxgl:open-mr`, `$oxgl:issue`, and `$oxgl:shipit`.
 
 For reference, the marketplace file lives at:
 
@@ -106,7 +106,7 @@ make install-codex PLUGINS=oxgh
 make link-codex PLUGINS=oxgh
 ```
 
-Those user-level installed skills are available from any repo as `$oxgh:open-pr`, `$oxgh:issue`, `$oxgh:triage`, `$oxgh:wait-for-review`, `$oxgh:merge-or-fix`, and `$oxgh:shipit`.
+Those user-level installed skills are available from any repo as `$oxgh:open-pr`, `$oxgh:issue`, `$oxgh:triage`, and `$oxgh:shipit`.
 
 The generated Codex plugin packages under `codex/plugins/` are for Codex plugin marketplace workflows. The repo-local marketplace at `.agents/plugins/marketplace.json` points at those packages when working in this repository.
 

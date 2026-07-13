@@ -139,10 +139,10 @@ class TestTransformContextInjections:
 
 class TestTransformPluginRootRefs:
     def test_replaces_plugin_root(self) -> None:
-        body = "Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait_for_ai_review.py`"
+        body = "Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/helper.py`"
         result = transform_plugin_root_refs(body)
         assert "${CLAUDE_PLUGIN_ROOT}" not in result
-        assert "scripts/wait_for_ai_review.py" in result
+        assert "scripts/helper.py" in result
 
     def test_no_change_without_ref(self) -> None:
         body = "Just some text"
@@ -256,25 +256,25 @@ class TestProcessSkill:
         plugin_dir = tmp_path / "src"
         scripts_dir = plugin_dir / "scripts"
         scripts_dir.mkdir(parents=True)
-        (scripts_dir / "wait_for_ai_review.py").write_text("# review script")
+        (scripts_dir / "helper.py").write_text("# helper script")
 
-        skill_dir = plugin_dir / "skills" / "wait-for-review"
+        skill_dir = plugin_dir / "skills" / "scripted-skill"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
             "---\n"
-            "allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait_for_ai_review.py:*)\n"
-            "description: Wait for review\n"
+            "allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/helper.py:*)\n"
+            "description: Scripted skill\n"
             "---\n"
             "\n"
-            "Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait_for_ai_review.py 42`\n"
+            "Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/helper.py 42`\n"
         )
 
         output_dir = tmp_path / "out"
         process_skill("oxgh", skill_dir, output_dir)
 
-        out_script = output_dir / "oxgh" / "wait-for-review" / "scripts" / "wait_for_ai_review.py"
+        out_script = output_dir / "oxgh" / "scripted-skill" / "scripts" / "helper.py"
         assert out_script.exists()
-        assert out_script.read_text() == "# review script"
+        assert out_script.read_text() == "# helper script"
 
     def test_can_write_plugin_local_skill(self, tmp_path: Path) -> None:
         skill_dir = tmp_path / "src" / "skills" / "open-pr"
@@ -403,11 +403,11 @@ class TestRenderHookTemplate:
 
 class TestStampSkillScriptPaths:
     def test_rewrites_relative_script_ref(self) -> None:
-        content = "Run `python3 scripts/wait.py 42`"
-        result = stamp_skill_script_paths(content, "oxidian", "oxgh", "0.1.4", "wait-for-review")
+        content = "Run `python3 scripts/helper.py 42`"
+        result = stamp_skill_script_paths(content, "oxidian", "oxgh", "0.1.4", "scripted-skill")
         assert (
             result
-            == "Run `python3 $HOME/.codex/plugins/cache/oxidian/oxgh/0.1.4/skills/wait-for-review/scripts/wait.py 42`"
+            == "Run `python3 $HOME/.codex/plugins/cache/oxidian/oxgh/0.1.4/skills/scripted-skill/scripts/helper.py 42`"
         )
 
     def test_rewrites_multiple_scripts(self) -> None:
@@ -473,14 +473,14 @@ class TestVersionStampedPluginPackage:
 
         plugins_dir = repo_root / "plugins"
         plugin_dir = self._setup_plugin(plugins_dir, "oxgh", "7.0.1")
-        skill_dir = plugin_dir / "skills" / "wait-for-review"
+        skill_dir = plugin_dir / "skills" / "scripted-skill"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nallowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait.py:*)\n"
-            "description: Wait\n---\n\nRun `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait.py 42`.\n"
+            "---\nallowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/helper.py:*)\n"
+            "description: Scripted skill\n---\n\nRun `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/helper.py 42`.\n"
         )
         (plugin_dir / "scripts").mkdir()
-        (plugin_dir / "scripts" / "wait.py").write_text("# wait\n")
+        (plugin_dir / "scripts" / "helper.py").write_text("# helper\n")
 
         monkeypatch.setattr(generate_codex, "PLUGINS_DIR", plugins_dir)
         monkeypatch.setattr(generate_codex, "CLAUDE_MARKETPLACE", repo_root / ".claude-plugin" / "marketplace.json")
@@ -488,15 +488,15 @@ class TestVersionStampedPluginPackage:
         output_dir = tmp_path / "codex" / "plugins"
         generate_plugin_package("oxgh", output_dir)
 
-        skill = (output_dir / "oxgh" / "skills" / "wait-for-review" / "SKILL.md").read_text()
-        assert "$HOME/.codex/plugins/cache/oxidian/oxgh/7.0.1/skills/wait-for-review/scripts/wait.py" in skill
+        skill = (output_dir / "oxgh" / "skills" / "scripted-skill" / "SKILL.md").read_text()
+        assert "$HOME/.codex/plugins/cache/oxidian/oxgh/7.0.1/skills/scripted-skill/scripts/helper.py" in skill
         # Bare relative form should be absent now
-        assert "scripts/wait.py" in skill  # appears inside the absolute path
-        assert skill.count("scripts/wait.py") == skill.count(
-            "$HOME/.codex/plugins/cache/oxidian/oxgh/7.0.1/skills/wait-for-review/scripts/wait.py"
+        assert "scripts/helper.py" in skill  # appears inside the absolute path
+        assert skill.count("scripts/helper.py") == skill.count(
+            "$HOME/.codex/plugins/cache/oxidian/oxgh/7.0.1/skills/scripted-skill/scripts/helper.py"
         )
         # Scripts file is still copied so the cache install layout is correct
-        assert (output_dir / "oxgh" / "skills" / "wait-for-review" / "scripts" / "wait.py").exists()
+        assert (output_dir / "oxgh" / "skills" / "scripted-skill" / "scripts" / "helper.py").exists()
 
     def test_namespaced_skills_remain_relative(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # The standalone codex/skills/<plugin>/<skill>/SKILL.md output (used by
@@ -508,13 +508,13 @@ class TestVersionStampedPluginPackage:
 
         plugins_dir = repo_root / "plugins"
         plugin_dir = self._setup_plugin(plugins_dir, "oxgh", "7.0.1")
-        skill_dir = plugin_dir / "skills" / "wait-for-review"
+        skill_dir = plugin_dir / "skills" / "scripted-skill"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\ndescription: Wait\n---\n\nRun `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/wait.py 42`.\n"
+            "---\ndescription: Scripted skill\n---\n\nRun `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/helper.py 42`.\n"
         )
         (plugin_dir / "scripts").mkdir()
-        (plugin_dir / "scripts" / "wait.py").write_text("# wait\n")
+        (plugin_dir / "scripts" / "helper.py").write_text("# helper\n")
 
         monkeypatch.setattr(generate_codex, "PLUGINS_DIR", plugins_dir)
         monkeypatch.setattr(generate_codex, "CLAUDE_MARKETPLACE", repo_root / ".claude-plugin" / "marketplace.json")
@@ -522,8 +522,8 @@ class TestVersionStampedPluginPackage:
         out_skills = tmp_path / "codex" / "skills"
         process_skill("oxgh", skill_dir, out_skills)
 
-        skill = (out_skills / "oxgh" / "wait-for-review" / "SKILL.md").read_text()
-        assert "python3 scripts/wait.py 42" in skill
+        skill = (out_skills / "oxgh" / "scripted-skill" / "SKILL.md").read_text()
+        assert "python3 scripts/helper.py 42" in skill
         assert "$HOME/.codex/plugins/cache" not in skill
 
 
@@ -655,20 +655,6 @@ class TestEndToEnd:
         assert "`git status --porcelain`" in result
         assert "Execute each step as a separate command." in result
 
-    def test_wait_for_review_skill(self, tmp_path: Path) -> None:
-        skill_dir = PLUGINS_DIR / "oxgh" / "skills" / "wait-for-review"
-        process_skill("oxgh", skill_dir, tmp_path)
-
-        result = (tmp_path / "oxgh" / "wait-for-review" / "SKILL.md").read_text()
-        assert "name: oxgh:wait-for-review" in result
-        assert "${CLAUDE_PLUGIN_ROOT}" not in result
-        assert "scripts/wait_for_ai_review.py" in result
-        assert "disable-model-invocation" not in result
-
-        # Script should be copied
-        script = tmp_path / "oxgh" / "wait-for-review" / "scripts" / "wait_for_ai_review.py"
-        assert script.exists()
-
     def test_shipit_skill(self, tmp_path: Path) -> None:
         skill_dir = PLUGINS_DIR / "oxgh" / "skills" / "shipit"
         process_skill("oxgh", skill_dir, tmp_path)
@@ -697,10 +683,10 @@ class TestEndToEnd:
 
 class TestResolveScriptPaths:
     def test_replaces_relative_with_absolute(self) -> None:
-        content = "Run `python3 scripts/wait_for_ai_review.py 42`"
+        content = "Run `python3 scripts/helper.py 42`"
         scripts_dir = Path("/opt/plugins/oxgh/scripts")
         result = resolve_script_paths(content, scripts_dir)
-        assert result == "Run `python3 /opt/plugins/oxgh/scripts/wait_for_ai_review.py 42`"
+        assert result == "Run `python3 /opt/plugins/oxgh/scripts/helper.py 42`"
 
     def test_replaces_multiple_scripts(self) -> None:
         content = "Run `scripts/a.py` then `scripts/b.py`"
@@ -727,12 +713,12 @@ class TestInstall:
         self._make_codex_skill(
             codex_dir,
             "oxgh",
-            "wait-for-review",
-            "---\nname: oxgh:wait-for-review\n---\nRun `python3 scripts/wait.py 42`\n",
+            "scripted-skill",
+            "---\nname: oxgh:scripted-skill\n---\nRun `python3 scripts/helper.py 42`\n",
         )
-        scripts_dir = codex_dir / "oxgh" / "wait-for-review" / "scripts"
+        scripts_dir = codex_dir / "oxgh" / "scripted-skill" / "scripts"
         scripts_dir.mkdir()
-        (scripts_dir / "wait.py").write_text("# script")
+        (scripts_dir / "helper.py").write_text("# script")
 
         monkeypatch.setattr(generate_codex, "OUTPUT_DIR", codex_dir)
 
@@ -740,11 +726,11 @@ class TestInstall:
         dest.mkdir()
         install(dest, ["oxgh"])
 
-        installed = (dest / "oxgh:wait-for-review" / "SKILL.md").read_text()
-        abs_path = str(dest / "oxgh:wait-for-review" / "scripts" / "wait.py")
+        installed = (dest / "oxgh:scripted-skill" / "SKILL.md").read_text()
+        abs_path = str(dest / "oxgh:scripted-skill" / "scripts" / "helper.py")
         assert abs_path in installed
         # No bare relative reference (every occurrence should be absolute)
-        assert installed.count("scripts/wait.py") == installed.count(abs_path)
+        assert installed.count("scripts/helper.py") == installed.count(abs_path)
 
     def test_no_resolution_without_scripts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         codex_dir = tmp_path / "codex"
@@ -771,12 +757,12 @@ class TestLink:
         self._make_codex_skill(
             codex_dir,
             "oxgh",
-            "wait-for-review",
-            "---\nname: oxgh:wait-for-review\n---\nRun `python3 scripts/wait.py 42`\n",
+            "scripted-skill",
+            "---\nname: oxgh:scripted-skill\n---\nRun `python3 scripts/helper.py 42`\n",
         )
-        scripts_dir = codex_dir / "oxgh" / "wait-for-review" / "scripts"
+        scripts_dir = codex_dir / "oxgh" / "scripted-skill" / "scripts"
         scripts_dir.mkdir()
-        (scripts_dir / "wait.py").write_text("# script")
+        (scripts_dir / "helper.py").write_text("# script")
 
         monkeypatch.setattr(generate_codex, "OUTPUT_DIR", codex_dir)
 
@@ -784,16 +770,16 @@ class TestLink:
         dest.mkdir()
         link(dest, ["oxgh"])
 
-        target = dest / "oxgh:wait-for-review"
+        target = dest / "oxgh:scripted-skill"
         # Should be a real directory (not a symlink to the whole skill dir)
         assert target.is_dir()
         assert not target.is_symlink()
 
         # SKILL.md should have absolute paths
         linked = (target / "SKILL.md").read_text()
-        abs_path = str(codex_dir / "oxgh" / "wait-for-review" / "scripts" / "wait.py")
+        abs_path = str(codex_dir / "oxgh" / "scripted-skill" / "scripts" / "helper.py")
         assert abs_path in linked
-        assert linked.count("scripts/wait.py") == linked.count(abs_path)
+        assert linked.count("scripts/helper.py") == linked.count(abs_path)
 
         # scripts/ should be a symlink to the source scripts dir
         linked_scripts = target / "scripts"

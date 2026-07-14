@@ -432,6 +432,14 @@ def main() -> None:
         _emit(args.runtime, "Plan mode active, skipping")
         sys.exit(SUCCESS_CODE)
 
+    if (
+        args.runtime == RUNTIME_CODEX
+        and args.action == "slow"
+        and hook_input
+        and hook_input.get("stop_hook_active") is True
+    ):
+        sys.exit(SUCCESS_CODE)
+
     # Read config
     config_file = os.path.join(project_dir, CONFIG_PATH)
     if not os.path.exists(config_file):

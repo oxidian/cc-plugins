@@ -1,6 +1,6 @@
 {
   "name": "ox",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "Base plugin — commit command, code quality hooks, auto-format and check hooks for all projects",
   "author": {
     "name": "Oxidian"

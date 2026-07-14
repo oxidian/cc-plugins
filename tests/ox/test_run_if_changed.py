@@ -285,6 +285,20 @@ class TestCodexRuntime:
         assert result.stdout == ""
         assert result.stderr == ""
 
+    def test_reentrant_stop_skips_before_config_parsing(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude" / "ox-hooks.json").write_text("{not json\n")
+        (tmp_path / "changed.txt").write_text("changed\n")
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+
+        result = _run_codex_hook(subdir, "slow", extra_payload={"stop_hook_active": True})
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
     def test_failure_exits_two_with_feedback_on_stderr(self, tmp_path: Path) -> None:
         check_script = tmp_path / "check.py"
         check_script.write_text("import sys\nprint('bad check output')\nsys.exit(1)\n")
